@@ -10,9 +10,10 @@ const ChatWrapper = styled.div`
   background-color: #1e1e2e;
   font-family: "Arial", sans-serif;
   color: #fff;
+  overflow: hidden; /* Ensures no content flows outside the container */
 
   @media (max-width: 600px) {
-    height: 100%;
+    height: 100vh; /* Fixes the height to full screen */
   }
 `;
 
@@ -22,6 +23,7 @@ const MessagesContainer = styled.div`
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box; /* Ensure padding is included in the height/width */
 
   ::-webkit-scrollbar {
     width: 8px;
@@ -51,6 +53,7 @@ const MessageBubble = styled.div`
     isUser ? "20px 20px 0 20px" : "20px 20px 20px 0"};
   align-self: ${({ isUser }) => (isUser ? "flex-end" : "flex-start")};
   word-wrap: break-word;
+  box-sizing: border-box;
 
   @media (max-width: 600px) {
     max-width: 90%;
@@ -63,6 +66,7 @@ const InputContainer = styled.div`
   padding: 15px;
   background-color: #292943;
   border-top: 1px solid #444;
+  box-sizing: border-box;
 
   @media (max-width: 600px) {
     padding: 10px;
@@ -79,6 +83,7 @@ const TextInput = styled.input`
   color: #fff;
   background-color: #3c3c5b;
   margin-right: 15px;
+  box-sizing: border-box;
 
   @media (max-width: 600px) {
     padding: 10px;
@@ -95,6 +100,7 @@ const SendButton = styled.button`
   font-size: 1rem;
   cursor: pointer;
   transition: background-color 0.3s ease;
+  box-sizing: border-box;
 
   &:hover {
     background-color: #5a5abf;
@@ -116,6 +122,7 @@ const ResetButton = styled.button`
   cursor: pointer;
   transition: background-color 0.3s ease;
   margin-left: 10px;
+  box-sizing: border-box;
 
   &:hover {
     background-color: #c0392b;
@@ -127,6 +134,7 @@ const ResetButton = styled.button`
     margin-left: 5px;
   }
 `;
+
 
 const TypingIndicator = styled.div`
   color: #aaa;
