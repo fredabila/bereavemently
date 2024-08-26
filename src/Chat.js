@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import styled from "styled-components";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faPaperPlane, faUndoAlt } from "@fortawesome/free-solid-svg-icons";
 
 const ChatWrapper = styled.div`
   display: flex;
@@ -61,12 +63,39 @@ const MessageBubble = styled.div`
   }
 `;
 
+const IconButton = styled.button`
+  background-color: ${({ bgColor }) => bgColor || "#4a4aad"};
+  border: none;
+  border-radius: 50%;
+  padding: 10px;
+  color: #fff;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.3s ease;
+  margin-left: ${({ marginLeft }) => marginLeft || "0"};
+  width: 45px;
+  height: 45px;
+
+  &:hover {
+    background-color: ${({ hoverColor }) => hoverColor || "#5a5abf"};
+  }
+
+  @media (max-width: 600px) {
+    width: 40px;
+    height: 40px;
+  }
+`;
+
 const InputContainer = styled.div`
   display: flex;
   padding: 15px;
   background-color: #292943;
   border-top: 1px solid #444;
   box-sizing: border-box;
+  justify-content: space-between;
 
   @media (max-width: 600px) {
     padding: 10px;
@@ -134,7 +163,6 @@ const ResetButton = styled.button`
     margin-left: 5px;
   }
 `;
-
 
 const TypingIndicator = styled.div`
   color: #aaa;
@@ -314,7 +342,9 @@ const Chat = () => {
         ))}
         <div ref={messagesEndRef} />
       </MessagesContainer>
-      {isTyping && <TypingIndicator>Bereavemently is typing...</TypingIndicator>}
+      {isTyping && (
+        <TypingIndicator>Bereavemently is typing...</TypingIndicator>
+      )}
       <InputContainer>
         <TextInput
           type="text"
@@ -323,8 +353,17 @@ const Chat = () => {
           onKeyDown={handleKeyDown}
           placeholder="Type your message..."
         />
-        <SendButton onClick={onSend}>Send</SendButton>
-        <ResetButton onClick={resetChat}>Reset Chat</ResetButton>
+        <IconButton onClick={onSend} bgColor="#4a4aad" hoverColor="#5a5abf">
+          <FontAwesomeIcon icon={faPaperPlane} />
+        </IconButton>
+        <IconButton
+          onClick={resetChat}
+          bgColor="#e74c3c"
+          hoverColor="#c0392b"
+          marginLeft="10px"
+        >
+          <FontAwesomeIcon icon={faUndoAlt} />
+        </IconButton>
       </InputContainer>
     </ChatWrapper>
   );
