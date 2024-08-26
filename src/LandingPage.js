@@ -5,7 +5,7 @@ const LandingPage = ({ onStartChat }) => {
     <div className="bg-gray-100 text-gray-800">
       {/* Hero Section */}
       <div className="relative flex flex-col items-center justify-center min-h-screen">
-        <div className="absolute inset-0 grid grid-cols-3 gap-2 opacity-20">
+        <div className="absolute inset-0 grid grid-cols-3 gap-2 opacity-40">
           <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSqEktGtMHCCc3TcxaCfNLqEOfByzSn9J6ZmA&s" alt="Background 1" className="w-full h-full object-cover"/>
           <img src="https://t4.ftcdn.net/jpg/06/59/01/71/360_F_659017126_Y6C9hIQIWxVO5Yh2ULonm9gws802bWUN.jpg" alt="Background 2" className="w-full h-full object-cover"/>
           <img src="https://t3.ftcdn.net/jpg/04/52/68/10/360_F_452681050_g4bwJDQsQztgJm1VIZ7HghpzA7KfWW06.jpg" alt="Background 3" className="w-full h-full object-cover"/>
