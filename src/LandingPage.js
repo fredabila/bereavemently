@@ -1,14 +1,25 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import Slider from 'react-slick';
+import "slick-carousel/slick/slick.css"; 
+import "slick-carousel/slick/slick-theme.css";
 
 const LandingPage = ({ onStartChat }) => {
+  const sliderSettings = {
+    dots: true,
+    infinite: true,
+    speed: 500,
+    slidesToShow: 1,
+    slidesToScroll: 1,
+    autoplay: true,
+    autoplaySpeed: 5000,
+    arrows: false,
+  };
+
   return (
     <div className="bg-gray-100 font-sans text-gray-800">
-
-      {/* Hero Section */}
       <div className="relative flex flex-col items-center justify-center min-h-screen px-4 sm:px-6 lg:px-8 overflow-hidden"> 
-        {/* Background Images with Parallax & Blur */}
-        <div className="absolute inset-0 grid grid-cols-2 md:grid-cols-3 gap-4 opacity-40 transform -translate-y-16">
+        <div className="absolute inset-0 grid grid-cols-2 md:grid-cols-3 gap-4 opacity-50 transform -translate-y-16">
           {[
             'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSqEktGtMHCCc3TcxaCfNLqEOfByzSn9J6ZmA&s', 
             'https://t4.ftcdn.net/jpg/06/59/01/71/360_F_659017126_Y6C9hIQIWxVO5Yh2ULonm9gws802bWUN.jpg',
@@ -21,15 +32,14 @@ const LandingPage = ({ onStartChat }) => {
               key={index}
               src={src} 
               alt={`Background ${index + 1}`} 
-              className="w-full h-full object-cover absolute inset-0 filter blur-md" 
+              className="w-full h-full object-cover absolute inset-0 filter " 
               initial={{ scale: 1.1, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 3, delay: index * 0.2, repeat: Infinity, repeatType: "loop" }}
+              transition={{ duration: 3, delay: index * 0.2, repeat: Infinity, repeatType: "reverse" }}
             />
           ))}
         </div>
 
-        {/* Hero Content */}
         <motion.div 
           className="relative z-10 text-center text-white"
           initial={{ opacity: 0, y: -50 }}
@@ -119,6 +129,41 @@ const LandingPage = ({ onStartChat }) => {
         </div>
       </section>
 
+      {/* Pet Loss Bereavement Section */}
+      <section className="py-20 bg-white">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <motion.h2 
+            className="text-3xl sm:text-4xl font-bold mb-8"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+          >
+            Pet Loss Bereavement
+          </motion.h2>
+          <Slider {...sliderSettings}>
+            {[
+              { 
+                title: 'Story 1', 
+                description: 'Losing my furry friend was one of the hardest experiences of my life, but sharing memories helped me heal.' 
+              },
+              { 
+                title: 'Story 2', 
+                description: 'My dog was more than a pet, he was family. The pain of his loss is immense, but the love we shared will never fade.' 
+              },
+              { 
+                title: 'Story 3', 
+                description: 'Grieving the loss of my cat was a journey, and Bereavemently’s support made it a little easier to bear.' 
+              }
+            ].map((story, index) => (
+              <div key={index} className="p-8 bg-gray-100 rounded-lg shadow-md">
+                <h3 className="text-xl sm:text-2xl font-semibold mb-4">{story.title}</h3>
+                <p className="text-gray-700 leading-relaxed">{story.description}</p>
+              </div>
+            ))}
+          </Slider>
+        </div>
+      </section>
+
       {/* Call to Action Section */}
       <section className="py-20 bg-gradient-to-r from-blue-500 to-purple-500 text-white text-center">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -128,27 +173,32 @@ const LandingPage = ({ onStartChat }) => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
           >
-            Start Your Journey Towards Healing
+            Join Our Community
           </motion.h2>
           <motion.p 
-            className="text-lg sm:text-xl mb-8 drop-shadow-md"
+            className="text-lg sm:text-xl font-light mb-8 drop-shadow-md"
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
           >
-            You don’t have to navigate this alone. We’re here to offer support, understanding, and hope. 
+            We are here to help you navigate your grief and find peace. Connect with others who understand your journey.
           </motion.p>
           <motion.button 
             onClick={onStartChat} 
-            className="px-8 py-4 bg-white text-blue-500 text-lg sm:text-xl font-semibold rounded-lg 
-                       shadow-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white"
+            className="px-8 py-4 text-lg sm:text-xl bg-white text-blue-500 font-semibold rounded-lg 
+                       shadow-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
-            Begin Chatting
+            Get Started
           </motion.button>
         </div>
       </section>
+
+      {/* Footer */}
+      <footer className="py-8 bg-gray-800 text-gray-400 text-center">
+        <p className="text-sm">© 2024 Bereavemently. All rights reserved.</p>
+      </footer>
     </div>
   );
 };
