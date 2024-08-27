@@ -197,6 +197,12 @@ const ChatTemplateButton = styled.button`
   }
 `;
 
+
+const stripHtmlTags = (str) => {
+  const tempDiv = document.createElement("div");
+  tempDiv.innerHTML = str;
+  return tempDiv.textContent || tempDiv.innerText || "";
+};
 const Chat = () => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -255,7 +261,8 @@ const Chat = () => {
       });
 
       const data = await response.json();
-      const reply = data.message;
+      const reply = stripHtmlTags(data.message); // Sanitize the response
+
 
       setMessages((prevMessages) => [
         ...prevMessages,
