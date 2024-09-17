@@ -2,7 +2,12 @@ import React, { useState, useEffect, useRef } from "react";
 import styled from "styled-components";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPaperPlane, faUndoAlt } from "@fortawesome/free-solid-svg-icons";
+import { useNavigate } from "react-router-dom";
+import { db, auth } from "./firebase"; // Replace with your Firebase config
+import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 
+// Subscription Logic (You need to get this data from the backend)
+const DAILY_MESSAGE_LIMIT = 25; // For Free Plan users
 const ChatWrapper = styled.div`
   display: flex;
   flex-direction: column;
@@ -197,26 +202,79 @@ const ChatTemplateButton = styled.button`
   }
 `;
 
-
 const stripHtmlTags = (str) => {
   const tempDiv = document.createElement("div");
   tempDiv.innerHTML = str;
   return tempDiv.textContent || tempDiv.innerText || "";
 };
+
 const Chat = () => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [chatHistory, setChatHistory] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
   const [showTemplates, setShowTemplates] = useState(true);
+  const [dailyMessageCount, setDailyMessageCount] = useState(0); // Tracks messages sent today
+  const [limitExceeded, setLimitExceeded] = useState(false); // Whether the daily limit is exceeded
+  const user = auth.currentUser;
+  const navigate = useNavigate();
 
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (user) {
+        const userDocRef = doc(db, "bereavementlyUsers", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (userDocSnap.exists()) {
+          const userData = userDocSnap.data();
+
+          // Daily Reset Logic:
+          const lastRequestDate = userData.lastRequestDate
+            ? userData.lastRequestDate.toDate()
+            : new Date(0); // Get last request date or set to epoch if not available
+          const today = new Date();
+
+          if (
+            lastRequestDate.getDate() !== today.getDate() ||
+            lastRequestDate.getMonth() !== today.getMonth() ||
+            lastRequestDate.getFullYear() !== today.getFullYear()
+          ) {
+            // It's a new day - reset requestNo to 0
+            await updateDoc(userDocRef, { requestNo: 0 });
+            setDailyMessageCount(0);
+            setLimitExceeded(false); // Reset limit exceeded flag
+          } else {
+            // If it's the same day, use existing requestNo
+            setDailyMessageCount(userData.requestNo || 0);
+
+            // Determine if limit is exceeded based on subscription type
+            if (
+              userData.subscriptionType === "Free" &&
+              userData.requestNo >= 25
+            ) {
+              setLimitExceeded(true);
+            } else if (
+              userData.subscriptionType === "Standard" &&
+              userData.requestNo >= 100
+            ) {
+              setLimitExceeded(true);
+            }
+          }
+        }
+      }
+    };
+
+    fetchUserData();
+  }, [user]);
   const messagesEndRef = useRef(null);
 
+  // Scroll to bottom whenever messages change
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
   useEffect(() => {
+    // Get stored messages and chat history from local storage on load
     const storedMessages = JSON.parse(localStorage.getItem("messages"));
     const storedChatHistory = JSON.parse(localStorage.getItem("chatHistory"));
     if (storedMessages && storedMessages.length > 0) {
@@ -227,15 +285,39 @@ const Chat = () => {
       setShowTemplates(false);
       setChatHistory(storedChatHistory);
     }
+
+    // Fetch daily message count (from backend or local storage)
+    const storedMessageCount = JSON.parse(
+      localStorage.getItem("dailyMessageCount")
+    );
+    setDailyMessageCount(storedMessageCount || 0);
   }, []);
 
+  // Save messages and chat history in local storage
   useEffect(() => {
     localStorage.setItem("messages", JSON.stringify(messages));
     localStorage.setItem("chatHistory", JSON.stringify(chatHistory));
-  }, [messages, chatHistory]);
+    localStorage.setItem(
+      "dailyMessageCount",
+      JSON.stringify(dailyMessageCount)
+    );
+
+    // Check if the daily message limit is exceeded
+    if (dailyMessageCount >= DAILY_MESSAGE_LIMIT) {
+      setLimitExceeded(true);
+    }
+  }, [messages, chatHistory, dailyMessageCount]);
 
   const onSend = async () => {
     if (input.trim() === "") return;
+
+    // Check if daily limit is exceeded before sending the message
+    if (limitExceeded) {
+      alert(
+        "You have exceeded your daily message limit. Please upgrade to continue."
+      );
+      return;
+    }
 
     const context = chatHistory.slice(-12);
     const newMessage = { text: input, isUser: true };
@@ -245,6 +327,18 @@ const Chat = () => {
     setShowTemplates(false);
     setIsTyping(true);
 
+    // Increment the daily message count and check limit
+    setDailyMessageCount(dailyMessageCount + 1);
+    if (dailyMessageCount + 1 >= DAILY_MESSAGE_LIMIT) {
+      setLimitExceeded(true);
+    }
+    if (user) {
+      const userDocRef = doc(db, "bereavementlyUsers", user.uid);
+      await updateDoc(userDocRef, {
+        requestNo: dailyMessageCount + 1,
+        lastRequestDate: serverTimestamp(), // Update last request timestamp
+      });
+    }
     try {
       const response = await fetch("https://v1.api.buzzchat.site/ember/", {
         method: "POST",
@@ -262,7 +356,6 @@ const Chat = () => {
 
       const data = await response.json();
       const reply = stripHtmlTags(data.message); // Sanitize the response
-
 
       setMessages((prevMessages) => [
         ...prevMessages,
@@ -299,9 +392,12 @@ const Chat = () => {
   const resetChat = () => {
     setMessages([]);
     setChatHistory([]);
+    setDailyMessageCount(0); // Reset daily message count
     localStorage.removeItem("messages");
     localStorage.removeItem("chatHistory");
+    localStorage.removeItem("dailyMessageCount");
     setShowTemplates(true);
+    setLimitExceeded(false);
   };
 
   const chatTemplates = [
@@ -352,6 +448,8 @@ const Chat = () => {
       {isTyping && (
         <TypingIndicator>Bereavemently is typing...</TypingIndicator>
       )}
+
+      {/* Disable Input when the limit is exceeded */}
       <InputContainer>
         <TextInput
           type="text"
@@ -359,8 +457,14 @@ const Chat = () => {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Type your message..."
+          disabled={limitExceeded}
         />
-        <IconButton onClick={onSend} bgColor="#4a4aad" hoverColor="#5a5abf">
+        <IconButton
+          onClick={onSend}
+          bgColor="#4a4aad"
+          hoverColor="#5a5abf"
+          disabled={limitExceeded}
+        >
           <FontAwesomeIcon icon={faPaperPlane} />
         </IconButton>
         <IconButton
@@ -372,6 +476,13 @@ const Chat = () => {
           <FontAwesomeIcon icon={faUndoAlt} />
         </IconButton>
       </InputContainer>
+
+      {limitExceeded && (
+        <TypingIndicator>
+          You have reached your daily message limit. Please upgrade to continue.
+          <button onClick={() => navigate("/subscribe")}>Upgrade</button>
+        </TypingIndicator>
+      )}
     </ChatWrapper>
   );
 };
