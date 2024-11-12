@@ -1,13 +1,14 @@
 import React, { useState } from "react";
-import { auth, db } from "../firebase"; // Make sure to import Firestore
+import { auth, db } from "../firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
-import { doc, setDoc } from "firebase/firestore"; // Firestore functions
+import { doc, setDoc } from "firebase/firestore";
+import { Sparkles, Mail, Lock, User, ArrowRight } from "lucide-react";
 
 const Signup = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState(""); // Add name field
+  const [name, setName] = useState("");
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
@@ -17,85 +18,77 @@ const Signup = () => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Add user data to Firestore
       await setDoc(doc(db, "bereavementlyUsers", user.uid), {
         name: name,
         email: user.email,
-        subscriptionType: "Free", // Default subscription type
-        requestNo: 0, // Initial request number
+        subscriptionType: "Free",
+        requestNo: 0,
       });
 
-      navigate("/chat");
+      navigate("/profile");
     } catch (err) {
       setError(err.message);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white shadow-xl rounded-lg p-8 max-w-md w-full">
-        <h2 className="text-3xl font-bold text-center mb-6 text-gray-800">
-          Create Your Account
-        </h2>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-400 via-blue-500 to-indigo-600">
+      <div className="bg-white bg-opacity-10 backdrop-blur-lg rounded-3xl p-8 max-w-md w-full shadow-2xl">
+        <div className="flex items-center justify-center mb-8">
+          <Sparkles className="text-blue-200 mr-2" size={32} />
+          <h2 className="text-4xl font-extrabold text-white">Join Us</h2>
+        </div>
 
-        <form onSubmit={handleSignup} className="space-y-4">
-          <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-              Full Name
-            </label>
+        <form onSubmit={handleSignup} className="space-y-6">
+          <div className="relative">
+            <User className="absolute top-3 left-3 text-blue-200" size={20} />
             <input
               type="text"
-              id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Enter your full name"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+              placeholder="Full Name"
+              className="w-full pl-10 pr-4 py-3 bg-white bg-opacity-10 rounded-full placeholder-blue-200 text-white focus:outline-none focus:ring-2 focus:ring-blue-300"
             />
           </div>
 
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-              Email Address
-            </label>
+          <div className="relative">
+            <Mail className="absolute top-3 left-3 text-blue-200" size={20} />
             <input
               type="email"
-              id="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+              placeholder="Email Address"
+              className="w-full pl-10 pr-4 py-3 bg-white bg-opacity-10 rounded-full placeholder-blue-200 text-white focus:outline-none focus:ring-2 focus:ring-blue-300"
             />
           </div>
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-              Password
-            </label>
+          <div className="relative">
+            <Lock className="absolute top-3 left-3 text-blue-200" size={20} />
             <input
               type="password"
-              id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Create a password"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+              placeholder="Create Password"
+              className="w-full pl-10 pr-4 py-3 bg-white bg-opacity-10 rounded-full placeholder-blue-200 text-white focus:outline-none focus:ring-2 focus:ring-blue-300"
             />
           </div>
 
-          {error && <p className="text-red-500 text-sm">{error}</p>}
+          {error && <p className="text-red-300 text-sm">{error}</p>}
 
           <button
             type="submit"
-            className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50 transition ease-in-out duration-200"
+            className="w-full bg-blue-100 text-blue-800 py-3 rounded-full font-bold hover:bg-blue-200 transition duration-300 flex items-center justify-center"
           >
             Sign Up
+            <ArrowRight className="ml-2" size={20} />
           </button>
         </form>
 
-        <div className="flex justify-between items-center mt-4">
-          <p className="text-sm text-gray-600">Already have an account?</p>
+        <div className="flex justify-center items-center mt-8 text-sm text-blue-100">
+          <p className="mr-2">Already have an account?</p>
           <button
             onClick={() => navigate("/login")}
-            className="text-sm text-blue-500 hover:underline"
+            className="font-semibold hover:underline"
           >
             Log In
           </button>

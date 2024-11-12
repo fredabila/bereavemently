@@ -1,29 +1,26 @@
 import React, { useState } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { auth } from "./firebase";
+import Header from "./components/header";
 import LandingPage from "./LandingPage";
 import Chat from "./Chat";
 import Login from "./components/login";
 import Signup from "./components/signup";
 import ProtectedRoute from "./components/privateroute";
 import Subscribe from "./components/subscribe";
+import ProfilePage from "./ProfilePage";
+import PrivacyPolicy from "./components/privacy_policy";
 import "./index.css";
 
 function App() {
-  const [showChat, setShowChat] = useState(false);
   const user = auth.currentUser;
+  const [showChat, setShowChat] = useState(false);
+
   return (
     <Router>
-      <div className="font-sans">
-        <header className="bg-blue-500 text-white fixed w-full z-50 top-0 shadow-md">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between py-3">
-            <a href="/" className="text-xl md:text-2xl font-bold">
-              Bereavemently
-            </a>
-          </div>
-        </header>
-
-        <main className="pt-16 md:pt-20">
+      <div className="font-sans bg-gray-100 min-h-screen flex flex-col">
+        <Header user={user} />
+        <main>
           <Routes>
             <Route
               path="/"
@@ -33,13 +30,22 @@ function App() {
               path="/chat"
               element={
                 <ProtectedRoute>
-                  <Chat user={user}/>
+                  <Chat user={user} />
                 </ProtectedRoute>
               }
             />
             <Route path="/login" element={<Login />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="/signup" element={<Signup />} />
-            <Route path="/subscribe" element={<Subscribe />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route
+              path="/subscribe"
+              element={
+                <ProtectedRoute>
+                  <Subscribe />
+                </ProtectedRoute>
+              }
+            />
           </Routes>
         </main>
       </div>
