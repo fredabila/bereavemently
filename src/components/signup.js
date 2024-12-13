@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { auth, db } from "../firebase";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import { doc, setDoc } from "firebase/firestore";
 import { Sparkles, Mail, Lock, User, ArrowRight } from "lucide-react";
@@ -20,6 +20,25 @@ const Signup = () => {
 
       await setDoc(doc(db, "bereavementlyUsers", user.uid), {
         name: name,
+        email: user.email,
+        subscriptionType: "Free",
+        requestNo: 0,
+      });
+
+      navigate("/profile");
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleGoogleSignup = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      await setDoc(doc(db, "bereavementlyUsers", user.uid), {
+        name: user.displayName,
         email: user.email,
         subscriptionType: "Free",
         requestNo: 0,
@@ -81,6 +100,21 @@ const Signup = () => {
           >
             Sign Up
             <ArrowRight className="ml-2" size={20} />
+          </button>
+
+          <div className="relative flex items-center justify-center">
+            <div className="border-t border-blue-200 opacity-30 w-full"></div>
+            <span className="bg-transparent px-4 text-blue-200 text-sm">or</span>
+            <div className="border-t border-blue-200 opacity-30 w-full"></div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGoogleSignup}
+            className="w-full bg-white bg-opacity-10 text-white py-3 rounded-full font-bold hover:bg-opacity-20 transition duration-300 flex items-center justify-center"
+          >
+            <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5 mr-2" />
+            Continue with Google
           </button>
         </form>
 

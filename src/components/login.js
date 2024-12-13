@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { auth } from "../firebase";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth, db } from "../firebase";
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import { Sparkles, Mail, Lock, ArrowRight } from "lucide-react";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -14,6 +15,32 @@ const Login = () => {
     e.preventDefault();
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      navigate("/profile");
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      // Check if user exists in Firestore
+      const userDocRef = doc(db, "bereavementlyUsers", user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (!userDoc.exists()) {
+        // Create new user document if it doesn't exist
+        await setDoc(userDocRef, {
+          name: user.displayName,
+          email: user.email,
+          subscriptionType: "Free",
+          requestNo: 0,
+        });
+      }
+
       navigate("/profile");
     } catch (err) {
       setError(err.message);
@@ -67,6 +94,21 @@ const Login = () => {
           >
             Log In
             <ArrowRight className="ml-2" size={20} />
+          </button>
+
+          <div className="relative flex items-center justify-center">
+            <div className="border-t border-blue-200 opacity-30 w-full"></div>
+            <span className="bg-transparent px-4 text-blue-200 text-sm">or</span>
+            <div className="border-t border-blue-200 opacity-30 w-full"></div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGoogleLogin}
+            className="w-full bg-white bg-opacity-10 text-white py-3 rounded-full font-bold hover:bg-opacity-20 transition duration-300 flex items-center justify-center"
+          >
+            <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5 mr-2" />
+            Continue with Google
           </button>
         </form>
 

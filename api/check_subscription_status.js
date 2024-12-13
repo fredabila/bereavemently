@@ -24,6 +24,7 @@ app.post("/api/check_subscription_status", async (req, res) => {
     const planMap = {
         price_1Q1F0oRxOeMixWFAZM6BhW2e: "Standard",
       price_1Q1F2ZRxOeMixWFAK4zUsgGe: "Premium",
+      price_1Q1F4IRxOeMixWFAZQ555555: "Sponsor",
     };
 
     // Check the status of the subscription

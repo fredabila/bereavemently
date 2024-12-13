@@ -42,6 +42,12 @@ const plans = [
     ],
     priceId: "price_1Q1F2ZRxOeMixWFAK4zUsgGe", // Replace with actual Stripe Price ID
   },
+  {
+    name: "Sponsor",
+    price: "$75/week",
+    features: ["Unlimited chat access", "Unlimited requests", "24/7 premium support", "Access to Microphone"],
+    priceId: "price_1QVeFSRxOeMixWFAJST2LF8H", // Replace with actual Stripe Price ID
+  },  
 ];
 
 const Subscribe = () => {

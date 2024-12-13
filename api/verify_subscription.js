@@ -18,6 +18,7 @@ app.post('/api/verify_subscription', async (req, res) => {
     const planMap = {
       'price_1Q1F0oRxOeMixWFAZM6BhW2e': 'Standard',
       'price_1Q1F2ZRxOeMixWFAK4zUsgGe': 'Premium',
+      'price_1QVeFSRxOeMixWFAJST2LF8H': 'Sponsor',
     };
 
     res.status(200).json({
