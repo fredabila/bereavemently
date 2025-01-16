@@ -10,6 +10,7 @@ import ProtectedRoute from "./components/privateroute";
 import Subscribe from "./components/subscribe";
 import ProfilePage from "./ProfilePage";
 import PrivacyPolicy from "./components/privacy_policy";
+import CAFireQRCode from './components/CAFireQRCode';
 import "./index.css";
 
 function App() {
@@ -46,6 +47,14 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route path="/ca-fire-support" element={
+              <Signup specialOffer={{
+                type: 'CA_FIRE_VICTIM',
+                duration: 90,
+                description: 'Free 90-day Premium Support for California Fire Victims'
+              }} />
+            } />
+            <Route path="/ca-fire-qr" element={<CAFireQRCode />} />
           </Routes>
         </main>
       </div>

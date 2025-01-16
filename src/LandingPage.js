@@ -540,6 +540,31 @@ const LandingPage = ({ onStartChat }) => {
         )}
       </motion.div>
 
+      {/* Third Party In-App Purchase Banner */}
+      <div className="bg-gradient-to-r from-indigo-600 to-blue-600 py-6 px-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex-1">
+                <h3 className="text-xl font-semibold text-white mb-2">
+                  Third-Party In-App Purchases
+                </h3>
+                <p className="text-blue-100">
+                  Some features in Bereavemently may include in-app purchases processed by third-party payment providers. 
+                  Additional terms and conditions may apply. Subscription fees are handled securely through Stripe payment processing.
+                </p>
+              </div>
+              <a 
+                href="/privacy-policy" 
+                className="inline-flex items-center px-6 py-3 bg-white text-indigo-600 rounded-full font-semibold hover:bg-blue-50 transition-colors duration-300"
+              >
+                Learn More
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Elegant Footer */}
       <footer className="bg-gradient-to-b from-white to-indigo-50 pt-16 pb-8">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -588,23 +613,28 @@ const LandingPage = ({ onStartChat }) => {
                 <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">Resources</h4>
                 <ul className="space-y-3">
                   <li>
-                    <a href="#" className="text-gray-600 hover:text-indigo-600 transition-colors duration-300">
-                      Grief Support
+                    <a href="https://missumuch.com" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-indigo-600 transition-colors duration-300">
+                      Missumuch.com
                     </a>
                   </li>
                   <li>
-                    <a href="#" className="text-gray-600 hover:text-indigo-600 transition-colors duration-300">
-                      Community
+                    <a href="https://lyfeindex.com" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-indigo-600 transition-colors duration-300">
+                      LyfeIndex.com
                     </a>
                   </li>
                   <li>
-                    <a href="#" className="text-gray-600 hover:text-indigo-600 transition-colors duration-300">
-                      Resources
+                    <a href="https://friendoflife.co" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-indigo-600 transition-colors duration-300">
+                      Friendoflife.co
                     </a>
                   </li>
                   <li>
-                    <a href="#" className="text-gray-600 hover:text-indigo-600 transition-colors duration-300">
-                      Blog
+                    <a href="https://deepwelldtx.com/Zengence" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-indigo-600 transition-colors duration-300">
+                      DeepWellDTx.com/Zengence
+                    </a>
+                  </li>
+                  <li>
+                    <a href="https://keylu.com" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-indigo-600 transition-colors duration-300">
+                      Keylu.com
                     </a>
                   </li>
                 </ul>
