@@ -1,6 +1,6 @@
 require('dotenv').config(); // To load environment variables from .env
 const express = require('express');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const stripe = require('stripe')(process.env.REACT_APP_STRIPE_SECRET_KEY);
 
 const app = express();
 app.use(express.json()); // Middleware to parse JSON request bodies
