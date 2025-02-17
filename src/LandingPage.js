@@ -617,26 +617,6 @@ const LandingPage = ({ onStartChat }) => {
                       Missumuch.com
                     </a>
                   </li>
-                  <li>
-                    <a href="https://lyfeindex.com" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-indigo-600 transition-colors duration-300">
-                      LyfeIndex.com
-                    </a>
-                  </li>
-                  <li>
-                    <a href="https://friendoflife.co" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-indigo-600 transition-colors duration-300">
-                      Friendoflife.co
-                    </a>
-                  </li>
-                  <li>
-                    <a href="https://deepwelldtx.com/Zengence" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-indigo-600 transition-colors duration-300">
-                      DeepWellDTx.com/Zengence
-                    </a>
-                  </li>
-                  <li>
-                    <a href="https://keylu.com" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-indigo-600 transition-colors duration-300">
-                      Keylu.com
-                    </a>
-                  </li>
                 </ul>
               </div>
 
