@@ -99,15 +99,26 @@ const MessagesContainer = styled.div`
 `;
 
 const MessageBubble = styled.div`
+  position: relative;
   max-width: 75%;
-  padding: 12px 16px;
-  margin: 8px 0;
+  padding: ${({ isUser }) => (isUser ? "12px 16px" : "20px 16px 12px")};
+  margin: ${({ isUser }) => (isUser ? "8px 0" : "24px 0 8px")};
   color: #fff;
   border-radius: ${({ isUser }) =>
     isUser ? "20px 20px 0 20px" : "20px 20px 20px 0"};
   align-self: ${({ isUser }) => (isUser ? "flex-end" : "flex-start")};
   word-wrap: break-word;
   box-sizing: border-box;
+
+  &::before {
+    content: ${({ isUser }) => (isUser ? '""' : '"AI Response"')};
+    position: absolute;
+    top: -20px;
+    left: 16px;
+    font-size: 12px;
+    color: #888;
+    font-style: italic;
+  }
 
   background-color: ${({ theme, isUser }) =>
     isUser ? theme.primary : theme.bubbleColor};
@@ -327,6 +338,16 @@ const JournalThemeTag = styled.span`
   padding: 4px 12px;
   border-radius: 20px;
   font-size: 0.875rem;
+`;
+
+const SafetyBanner = styled.div`
+  background-color: rgba(255, 255, 255, 0.1);
+  border-left: 4px solid ${({ theme }) => theme.primary};
+  padding: 12px 16px;
+  margin: 0 0 20px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  color: ${({ theme }) => theme.textColor};
 `;
 
 const stripHtmlTags = (str) => {
@@ -875,7 +896,10 @@ const Chat = () => {
   return (
     <ThemeProvider theme={subscriptionPlans[currentPlan].theme}>
       <ChatWrapper>
-        <MessagesContainer>
+        <MessagesContainer ref={messagesEndRef}>
+          <SafetyBanner>
+            ⚠️ Important: This is an AI-powered conversation. While I aim to provide support, I am not a replacement for professional mental health services. If you're experiencing severe emotional distress or having thoughts of self-harm, please contact emergency services or a mental health professional immediately.
+          </SafetyBanner>
           {showTemplates && (
             <ChatTemplatesContainer>
               {chatTemplates.map((template, index) => (
@@ -889,15 +913,18 @@ const Chat = () => {
             </ChatTemplatesContainer>
           )}
           {messages.map((message, index) => (
-            <MessageBubble key={index} isUser={message.isUser}>
+            <MessageBubble
+              key={index}
+              isUser={message.isUser}
+              className={message.isUser ? "user-message" : "ai-message"}
+            >
               {message.text}
             </MessageBubble>
           ))}
-          <div ref={messagesEndRef} />
+          {isTyping && (
+            <TypingIndicator>AI is typing...</TypingIndicator>
+          )}
         </MessagesContainer>
-        {isTyping && (
-          <TypingIndicator>Bereavemently is typing...</TypingIndicator>
-        )}
         <InputContainer>
           <IconButton
             onClick={startSpeechRecognition}

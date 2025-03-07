@@ -440,17 +440,23 @@ const LandingPage = ({ onStartChat }) => {
 
       {/* Existing Trial Chat Modal */}
       <motion.div 
-        className={`fixed inset-x-0 bottom-0 z-50 w-full md:w-96 md:bottom-4 md:right-4 
-          ${showTrialChat ? 'h-[80vh] md:h-[600px]' : 'h-auto'}`}
+        className={`fixed md:right-4 z-50 w-full md:w-96
+          ${showTrialChat ? 
+            'inset-x-0 bottom-0 md:bottom-4 h-[80vh] md:h-[600px]' : 
+            'bottom-4 md:bottom-4'}`}
       >
         {!showTrialChat ? (
-          <button
-            onClick={() => setShowTrialChat(true)}
-            className="w-full md:w-auto px-6 py-4 bg-indigo-600 text-white rounded-t-xl md:rounded-full 
-                     shadow-lg hover:bg-indigo-700 transition duration-300 text-base sm:text-lg"
-          >
-            Tell us what brings you here today
-          </button>
+          <div className="px-4 md:px-0">
+            <button
+              onClick={() => setShowTrialChat(true)}
+              className="w-full md:w-auto px-6 py-4 bg-indigo-600 text-white rounded-full
+                       shadow-lg hover:bg-indigo-700 transition duration-300 text-base sm:text-lg
+                       flex items-center justify-center space-x-2"
+            >
+              <span>Tell us what brings you here today</span>
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
         ) : (
           <div className="bg-white h-full w-full md:w-auto rounded-t-xl md:rounded-lg shadow-xl 
                         flex flex-col overflow-hidden">
@@ -565,6 +571,24 @@ const LandingPage = ({ onStartChat }) => {
         </div>
       </div>
 
+      {/* Pilot Program Section */}
+      <section className="py-16 bg-gradient-to-r from-indigo-50 to-blue-50">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <h2 className="text-3xl font-bold text-gray-900 mb-8">Pilot Program</h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
+              Join our exclusive pilot program and be among the first to experience our innovative AI-powered grief support platform.
+            </p>
+            <button
+              onClick={() => navigate('/signup')}
+              className="bg-indigo-600 text-white px-8 py-3 rounded-full text-lg font-semibold hover:bg-indigo-700 transition-colors duration-300"
+            >
+              Join the Pilot Program
+            </button>
+          </div>
+        </div>
+      </section>
+
       {/* Elegant Footer */}
       <footer className="bg-gradient-to-b from-white to-indigo-50 pt-16 pb-8">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -641,6 +665,17 @@ const LandingPage = ({ onStartChat }) => {
                   <li>
                     <a href="#" className="text-gray-600 hover:text-indigo-600 transition-colors duration-300">
                       Contact
+                    </a>
+                  </li>
+                </ul>
+              </div>
+
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">Contact</h4>
+                <ul className="space-y-3">
+                  <li>
+                    <a href="mailto:Christine@missumuch.com" className="text-gray-600 hover:text-indigo-600 transition-colors duration-300">
+                      Christine@missumuch.com
                     </a>
                   </li>
                 </ul>
