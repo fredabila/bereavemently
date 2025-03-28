@@ -8,6 +8,13 @@ import {
   faBook,
   faTimes,
   faPlus,
+  faImage,
+  faSmile,
+  faHeart,
+  faQuoteLeft,
+  faLightbulb,
+  faHandHoldingHeart,
+  faSpinner
 } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
 import { db, auth } from "./firebase"; // Your Firebase config
@@ -15,6 +22,7 @@ import { doc, getDoc, updateDoc, serverTimestamp, collection, setDoc, getDocs, q
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import genToken from './utils/genToken';
+import AudioConversation from './components/AudioConversation';
 
 // --- Subscription Data & Logic (Fetch from Backend) ---
 const subscriptionPlans = {
@@ -60,21 +68,25 @@ const ChatWrapper = styled.div`
   flex-direction: column;
   justify-content: space-between;
   width: 100%;
-  height: 100vh;
+  height: calc(100vh - 80px); /* Account for header height */
   background-color: ${({ theme }) => theme.backgroundColor};
   color: ${({ theme }) => theme.textColor};
   font-family: "Arial", sans-serif;
   overflow: hidden;
   transition: background-color 0.3s ease;
+  position: relative;
+  z-index: 10;
+  margin-top: 0; /* No extra margin needed with spacer div */
 
   @media (max-width: 600px) {
-    height: 100vh;
+    height: calc(100vh - 64px); /* Account for smaller header on mobile */
   }
 `;
 
 const MessagesContainer = styled.div`
   flex: 1;
   padding: 20px;
+  padding-top: 20px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -95,10 +107,13 @@ const MessagesContainer = styled.div`
 
   @media (max-width: 600px) {
     padding: 10px;
+    padding-top: 20px;
   }
 `;
 
-const MessageBubble = styled.div`
+const MessageBubble = styled.div.attrs(props => ({
+  className: props.isUser ? 'user-message' : 'ai-message'
+}))`
   position: relative;
   max-width: 75%;
   padding: ${({ isUser }) => (isUser ? "12px 16px" : "20px 16px 12px")};
@@ -138,7 +153,87 @@ const MessageBubble = styled.div`
 
   @media (max-width: 600px) {
     max-width: 90%;
-    padding: 10px;
+    padding: 10px 12px;
+    font-size: 15px;
+  }
+
+  @media (max-width: 480px) {
+    max-width: 95%;
+    padding: 8px 10px;
+    font-size: 14px;
+    margin: ${({ isUser }) => (isUser ? "6px 0" : "20px 0 6px")};
+  }
+`;
+
+const MessageImage = styled.img`
+  max-width: 100%;
+  border-radius: 12px;
+  margin: 4px 0;
+`;
+
+const SuggestionChips = styled.div.attrs({
+  className: 'suggestion-chips'
+})`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+
+  @media (max-width: 480px) {
+    gap: 6px;
+    margin-top: 8px;
+  }
+`;
+
+const SuggestionChip = styled.button.attrs({
+  className: 'suggestion-chip'
+})`
+  background-color: rgba(255, 255, 255, 0.15);
+  color: ${({ theme }) => theme.textColor};
+  border: none;
+  border-radius: 20px;
+  padding: 8px 14px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.25);
+  }
+  
+  svg {
+    margin-right: 6px;
+    font-size: 0.8rem;
+  }
+`;
+
+const QuoteBlock = styled.div`
+  border-left: 3px solid ${({ theme }) => theme.primary};
+  padding-left: 12px;
+  margin: 12px 0;
+  font-style: italic;
+  opacity: 0.9;
+`;
+
+const EmojiContainer = styled.div`
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+`;
+
+const EmojiButton = styled.button`
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    transform: scale(1.2);
+    opacity: 1;
   }
 `;
 
@@ -173,14 +268,18 @@ const IconButton = styled.button`
 
 const InputContainer = styled.div`
   display: flex;
+  flex-direction: column;
   padding: 15px;
   background-color: ${({ theme }) => theme.secondary};
   border-top: 1px solid #444;
   box-sizing: border-box;
-  justify-content: space-between;
 
   @media (max-width: 600px) {
     padding: 10px;
+  }
+
+  @media (max-width: 480px) {
+    padding: 8px;
   }
 `;
 
@@ -232,25 +331,65 @@ const ResetButton = styled.button`
   font-size: 1rem;
   cursor: pointer;
   transition: background-color 0.3s ease;
-  margin-left: 10px;
+  margin-top: 10px;
   box-sizing: border-box;
+  width: 100%;
 
   &:hover {
     background-color: #c0392b;
   }
 
   @media (max-width: 600px) {
-    padding: 10px 20px;
+    padding: 12px 20px;
     font-size: 0.9rem;
-    margin-left: 5px;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 10px 15px;
+    font-size: 0.85rem;
+    margin-top: 8px;
   }
 `;
 
 const TypingIndicator = styled.div`
-  color: ${({ theme }) => theme.textColor};
-  font-size: 0.9rem;
-  margin-left: 10px;
-  margin-bottom: 5px;
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  border-radius: 20px;
+  background-color: ${({ theme }) => theme.bubbleColor};
+  align-self: flex-start;
+  width: 60px;
+  
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: ${({ theme }) => theme.textColor};
+    margin: 0 3px;
+    animation: typing-dot 1.4s infinite ease-in-out;
+  }
+  
+  .dot:nth-child(1) {
+    animation-delay: 0s;
+  }
+  
+  .dot:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+  
+  .dot:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+  
+  @keyframes typing-dot {
+    0%, 60%, 100% {
+      transform: translateY(0);
+    }
+    30% {
+      transform: translateY(-6px);
+    }
+  }
 `;
 
 const ChatTemplatesContainer = styled.div`
@@ -305,12 +444,17 @@ const JournalModal = styled.div`
     height: 90vh;
     border-radius: 20px;
   }
+  
+  @media (max-width: 480px) {
+    padding: 15px 10px;
+  }
 `;
 
 const JournalHeader = styled.div`
   display: flex;
+  flex-direction: column;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   padding-bottom: 20px;
   margin-bottom: 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -319,6 +463,39 @@ const JournalHeader = styled.div`
     font-size: 1.5rem;
     font-weight: 600;
     color: white;
+    margin-bottom: 8px;
+  }
+  
+  p {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 12px;
+  }
+  
+  @media (min-width: 768px) {
+    flex-direction: row;
+    align-items: center;
+    
+    h2 {
+      margin-bottom: 0;
+    }
+    
+    p {
+      margin-bottom: 0;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    padding-bottom: 15px;
+    margin-bottom: 15px;
+    
+    h2 {
+      font-size: 1.3rem;
+    }
+    
+    p {
+      font-size: 0.85rem;
+    }
   }
 `;
 
@@ -330,6 +507,23 @@ const JournalEntry = styled.div`
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: white;
+  
+  @media (max-width: 480px) {
+    padding: 15px;
+    margin-bottom: 15px;
+    
+    h3 {
+      font-size: 1.1rem !important;
+    }
+    
+    h4 {
+      font-size: 1rem !important;
+    }
+    
+    p {
+      font-size: 0.9rem !important;
+    }
+  }
 `;
 
 const JournalThemeTag = styled.span`
@@ -338,22 +532,356 @@ const JournalThemeTag = styled.span`
   padding: 4px 12px;
   border-radius: 20px;
   font-size: 0.875rem;
+  
+  @media (max-width: 480px) {
+    padding: 3px 10px;
+    font-size: 0.8rem;
+  }
 `;
 
 const SafetyBanner = styled.div`
   background-color: rgba(255, 255, 255, 0.1);
   border-left: 4px solid ${({ theme }) => theme.primary};
   padding: 12px 16px;
-  margin: 0 0 20px;
+  margin: 10px 0;
   border-radius: 4px;
   font-size: 0.9rem;
   color: ${({ theme }) => theme.textColor};
+  
+  @media (max-width: 480px) {
+    padding: 10px 12px;
+    font-size: 0.85rem;
+    margin: 8px 0;
+  }
+`;
+
+const ToolbarContainer = styled.div`
+  display: flex;
+  overflow-x: auto;
+  padding: 8px 4px;
+  background-color: ${({ theme }) => theme.secondary};
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  
+  &::-webkit-scrollbar {
+    height: 3px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background-color: ${({ theme }) => theme.primary};
+    border-radius: 3px;
+  }
+`;
+
+const ToolbarButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  margin-right: 8px;
+  background-color: ${({ active, theme }) => active ? theme.primary : 'rgba(255, 255, 255, 0.1)'};
+  border: none;
+  color: ${({ theme }) => theme.textColor};
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background-color: ${({ active, theme }) => active ? theme.primary : 'rgba(255, 255, 255, 0.2)'};
+  }
+`;
+
+const MicButton = styled(ToolbarButton)`
+  background-color: ${({ theme, active }) => active ? theme.primary : 'rgba(255, 255, 255, 0.1)'};
+  color: ${({ active }) => active ? 'white' : 'inherit'};
+  
+  &:hover {
+    background-color: ${({ theme, active }) => active ? theme.primary : 'rgba(255, 255, 255, 0.2)'};
+  }
+  
+  ${({ theme, active }) =>
+    active && theme.gradient &&
+    css`
+      background: ${theme.gradient};
+    `}
+`;
+
+const SelfCareCard = styled.div`
+  background: linear-gradient(to right, ${({ theme }) => theme.primary}88, ${({ theme }) => theme.primary}33);
+  border-radius: 16px;
+  padding: 16px;
+  margin: 20px 0;
+  align-self: center;
+  max-width: 90%;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+  
+  h3 {
+    margin-bottom: 12px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+  }
+  
+  p {
+    margin-bottom: 10px;
+    line-height: 1.6;
+  }
+`;
+
+const CloseButton = styled.button`
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+  }
+`;
+
+const SelfCarePrompt = styled.div`
+  background-color: ${({ theme }) => theme.secondary || '#303040'};
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  
+  @media (max-width: 480px) {
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+`;
+
+const SelfCareHeader = styled.div`
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+  
+  svg {
+    margin-right: 10px;
+    color: ${({ theme }) => theme.primary || '#5a5abf'};
+  }
+  
+  h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: white;
+    flex: 1;
+  }
+`;
+
+const SelfCareContent = styled.div`
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+  
+  @media (max-width: 480px) {
+    font-size: 13px;
+    line-height: 1.4;
+    margin-bottom: 12px;
+  }
+`;
+
+const SelfCareActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+`;
+
+const SelfCareButton = styled.button`
+  background-color: ${({ theme }) => theme.primary || '#5a5abf'};
+  color: white;
+  border: none;
+  border-radius: 20px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+`;
+
+const SelfCareSkipButton = styled.button`
+  background-color: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+  }
+`;
+
+const TemplatesWrapper = styled.div`
+  padding: 20px;
+  text-align: center;
+  
+  h2 {
+    font-size: 24px;
+    margin-bottom: 24px;
+    color: white;
+    font-weight: 600;
+  }
+`;
+
+const TemplatesGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 16px;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
+  
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+`;
+
+const TemplateCard = styled.div`
+  background-color: ${({ theme }) => theme.bubbleColor || '#282838'};
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    background-color: ${({ theme }) => theme.secondary || '#303040'};
+  }
+
+  @media (max-width: 480px) {
+    padding: 12px;
+  }
+`;
+
+const TemplateIcon = styled.div`
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: ${({ theme }) => theme.primary || '#5a5abf'};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  
+  svg {
+    color: white;
+    font-size: 16px;
+  }
+`;
+
+const TemplateTitle = styled.h3`
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: white;
+`;
+
+const TemplateDescription = styled.p`
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0;
+  line-height: 1.5;
+`;
+
+const InputWrapper = styled.div.attrs({
+  className: 'input-wrapper'
+})`
+  display: flex;
+  align-items: center;
+  background-color: ${({ theme }) => theme.bubbleColor || '#282838'};
+  border-radius: 24px;
+  padding: 4px 4px 4px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  
+  &:focus-within {
+    border-color: ${({ theme }) => theme.primary || '#5a5abf'};
+    box-shadow: 0 0 0 2px rgba(90, 90, 191, 0.2);
+  }
+
+  @media (max-width: 480px) {
+    padding: 3px 3px 3px 12px;
+  }
+`;
+
+const InputField = styled.input`
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 16px;
+  padding: 12px 0;
+  outline: none;
+  
+  &::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+  }
+  
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+`;
+
+const ButtonGroup = styled.div.attrs({
+  className: 'button-group'
+})`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 8px;
+
+  @media (max-width: 480px) {
+    gap: 4px;
+    margin-left: 4px;
+  }
 `;
 
 const stripHtmlTags = (str) => {
+  if (!str) return '';
   const tempDiv = document.createElement("div");
   tempDiv.innerHTML = str;
   return tempDiv.textContent || tempDiv.innerText || "";
+};
+
+const getIconComponent = (icon) => {
+  if (!icon) return null;
+  
+  switch (icon) {
+    case 'heart':
+      return <FontAwesomeIcon icon={faHeart} />;
+    case 'lightbulb':
+      return <FontAwesomeIcon icon={faLightbulb} />;
+    case 'handHoldingHeart':
+      return <FontAwesomeIcon icon={faHandHoldingHeart} />;
+    default:
+      return null;
+  }
 };
 
 const Chat = () => {
@@ -370,6 +898,17 @@ const Chat = () => {
   const [isSpeechRecognizing, setIsSpeechRecognizing] = useState(false);
   const [showJournal, setShowJournal] = useState(false);
   const [journalEntries, setJournalEntries] = useState([]);
+  const [activeToolbar, setActiveToolbar] = useState(null);
+  const [gifSearchTerm, setGifSearchTerm] = useState("");
+  const [gifResults, setGifResults] = useState([]);
+  const [isGifLoading, setIsGifLoading] = useState(false);
+  const [dailyInsightShown, setDailyInsightShown] = useState(false);
+  const [suggestedResponses, setSuggestedResponses] = useState([]);
+  const [showSelfCarePrompt, setShowSelfCarePrompt] = useState(false);
+  const [selfCareRecommendation, setSelfCareRecommendation] = useState(null);
+  const [showAudioConversation, setShowAudioConversation] = useState(false);
+  const [isBotSpeaking, setIsBotSpeaking] = useState(false);
+  const [latestAiMessage, setLatestAiMessage] = useState('');
 
   const messagesEndRef = useRef(null);
   const speechRecognitionRef = useRef(null);
@@ -384,7 +923,7 @@ const Chat = () => {
           const userData = userDocSnap.data();
           console.log(userData.subscriptionType);
           setCurrentPlan(userData.subscriptionType || "Free");
-
+          console.log(userData.subscriptionType)
           // Daily Reset Logic:
           const lastRequestDate = userData.lastRequestDate
             ? userData.lastRequestDate.toDate()
@@ -449,11 +988,10 @@ const Chat = () => {
     if (currentPlan === "Free") {
       navigate("/subscribe");
     } else {
-      if (speechRecognitionRef.current) {
-        setIsSpeechRecognizing(true);
-        speechRecognitionRef.current.start();
-      } else {
-        alert("Speech recognition is not supported in your browser.");
+      setShowAudioConversation(!showAudioConversation);
+      // Reset speech recognition if user is turning off the audio conversation
+      if (showAudioConversation) {
+        setIsBotSpeaking(false);
       }
     }
   };
@@ -493,19 +1031,18 @@ const Chat = () => {
     if (input.trim() === "") return;
 
     if (limitExceeded) {
-      alert(
-        "You have exceeded your daily message limit. Please upgrade to continue."
-      );
+      toast.error("You've reached your daily message limit. Please upgrade to continue.");
       return;
     }
 
     const context = chatHistory.slice(-12); // Get last 12 messages for context
-    const newMessage = { text: input, isUser: true };
+    const newMessage = { type: "text", content: input, isUser: true };
     setMessages((prevMessages) => [...prevMessages, newMessage]);
     setChatHistory((prevHistory) => [...prevHistory, `\nMe: ${input}`]);
     setInput("");
     setShowTemplates(false);
     setIsTyping(true);
+    setSuggestedResponses([]);
 
     setDailyMessageCount(dailyMessageCount + 1);
 
@@ -518,6 +1055,22 @@ const Chat = () => {
     }
 
     try {
+      // Check if the message contains specific grief-related keywords to enhance response
+      const griefKeywords = ["loss", "died", "death", "grief", "missing", "passed away", "funeral"];
+      const containsGriefKeywords = griefKeywords.some(keyword => 
+        input.toLowerCase().includes(keyword)
+      );
+      
+      // Enhanced system prompt for more compassionate responses
+      const systemPrompt = containsGriefKeywords ? 
+        `You are Bereavemently, a specialized AI grief counselor with expertise in helping people navigate loss and mourning. 
+        Your primary focus is to provide emotional support, validation, and gentle guidance for someone experiencing grief.
+        Be warm, empathetic, and human in your responses. Listen actively and respond thoughtfully.
+        Occasionally (about 15% of responses), offer gentle wisdom about grief from experts or literature when relevant.
+        Your goal is to help the person feel truly heard, validated, and less alone in their grief journey.` 
+        : 
+        "You are Bereavemently. An AI meant to help people overcome the struggles of loss and mourning and to navigate these difficulties";
+
       const response = await fetch("https://v1.api.buzzchat.site/ember/", {
         method: "POST",
         headers: {
@@ -528,40 +1081,128 @@ const Chat = () => {
         body: JSON.stringify({
           content: `\nChatHistory:${context.join(
             ""
-          )} \nMe: ${input} \nBase: "You are Bereavemently. An AI meant to help people overcome the struggles of loss and mourning and to navigate these difficulties" \nBereavemently:`,
+          )} \nMe: ${input} \nBase: "${systemPrompt}" \nBereavemently:`,
         }),
       });
 
       const data = await response.json();
       const reply = stripHtmlTags(data.message);
 
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        { text: reply, isUser: false },
-      ]);
-      setChatHistory((prevHistory) => [
-        ...prevHistory,
-        `\nBereavemently: ${reply}`,
-      ]);
+      // Store the latest AI message for audio playback
+      setLatestAiMessage(reply);
 
-      if (reply.includes("feel") || reply.includes("emotion") || reply.includes("grief")) {
+      // Check if we should include a comforting image based on user's emotional state
+      const shouldIncludeImage = detectIntenseEmotion(input) && Math.random() < 0.5; // 40% chance
+      
+      if (shouldIncludeImage) {
+        await sendComfortingImage(reply);
+      } else {
+        processTextResponse(reply);
+      }
+
+      // Track grief themes for journal
+      if (reply.includes("feel") || reply.includes("emotion") || 
+          reply.includes("grief") || reply.includes("loss") || 
+          reply.includes("pain") || reply.includes("remember")) {
         await generateJournalEntry({
           userMessage: input,
           aiResponse: reply,
           timestamp: new Date().toISOString()
         });
       }
+      
+      // Generate suggested responses after brief delay to feel more natural
+      setTimeout(() => {
+        generateSuggestedResponses(reply);
+      }, 1000);
+      
     } catch (error) {
       console.error("Error with AI API:", error);
       setMessages((prevMessages) => [
         ...prevMessages,
         {
-          text: "Sorry, something went wrong. Please try again later.",
+          type: "text",
+          content: "Sorry, something went wrong. Please try again later.",
           isUser: false,
         },
       ]);
     } finally {
       setIsTyping(false);
+    }
+  };
+
+  const processTextResponse = (text) => {
+    // Check if the message contains a quote to format specially
+    const quoteMatch = text.match(/"([^"]+)"\s*—\s*([^"]+)/);
+    
+    if (quoteMatch) {
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        { 
+          type: "quote", 
+          content: {
+            text: quoteMatch[1],
+            author: quoteMatch[2]
+          },
+          isUser: false
+        }
+      ]);
+    } else {
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        { type: "text", content: text, isUser: false }
+      ]);
+    }
+    
+    setChatHistory((prevHistory) => [
+      ...prevHistory,
+      `\nBereavemently: ${text}`
+    ]);
+
+    // Store the latest AI response for audio playback
+    setLatestAiMessage(text);
+  };
+
+  const detectIntenseEmotion = (text) => {
+    const intenseEmotionWords = [
+      "overwhelmed", "devastated", "unbearable", "can't take", "too much", 
+      "heartbroken", "shattered", "destroyed", "desperate", "hopeless",
+      "crying", "sobbing", "tears", "lonely", "alone", "miss them", "missing"
+    ];
+    
+    return intenseEmotionWords.some(word => text.toLowerCase().includes(word));
+  };
+
+  const sendComfortingImage = async (reply) => {
+    try {
+      // Use GIPHY API to find a comforting image based on keywords
+      const comfortTerms = ["comfort", "healing", "calm", "peaceful nature", "hope", "gentle support"];
+      const randomTerm = comfortTerms[Math.floor(Math.random() * comfortTerms.length)];
+      
+      const response = await axios.get(
+        `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(randomTerm)}&key=AIzaSyCoMJX5afK5Ic0F5UQVHyfrbx6apQAAVWA&client_key=bereavemently&limit=5`
+      );
+      
+      if (response.data.results && response.data.results.length > 0) {
+        const randomIndex = Math.floor(Math.random() * response.data.results.length);
+        const gifUrl = response.data.results[randomIndex].media_formats.gif.url;
+        
+        setMessages((prevMessages) => [
+          ...prevMessages,
+          { type: "text", content: reply, isUser: false },
+          { 
+            type: "gif", 
+            content: gifUrl,
+            caption: "I thought this image might bring you some comfort.",
+            isUser: false 
+          }
+        ]);
+      } else {
+        processTextResponse(reply);
+      }
+    } catch (error) {
+      console.error("Error sending comforting image:", error);
+      processTextResponse(reply);
     }
   };
 
@@ -757,6 +1398,8 @@ const Chat = () => {
   };
 
   const generateAIResponse = async (prompt) => {
+    if (!prompt) return null;
+    
     try {
       const PROJECT_ID = "buzz-chat-17759";
       const LOCATION_ID = "us-central1";
@@ -793,9 +1436,14 @@ const Chat = () => {
       };
 
       const response = await axios.post(url, data, { headers });
+      if (!response.data || !response.data.candidates || !response.data.candidates[0]) {
+        return null;
+      }
+      
       const cleanedResponse = response.data.candidates[0].content.parts[0].text
         .replace(/```json\s*|\s*```/g, "")
         .trim();
+        
       return JSON.parse(cleanedResponse);
     } catch (error) {
       console.error("Error generating AI response:", error);
@@ -810,8 +1458,430 @@ const Chat = () => {
     }
   }, [showJournal]);
 
+  useEffect(() => {
+    // Check if the user has already seen an insight today
+    const lastInsightDate = localStorage.getItem("lastInsightDate");
+    const today = new Date().toDateString();
+    
+    if (lastInsightDate !== today && messages.length > 5 && !dailyInsightShown) {
+      generateDailyInsight();
+      localStorage.setItem("lastInsightDate", today);
+      setDailyInsightShown(true);
+    }
+  }, [messages]);
+
+  const searchGifs = async (term) => {
+    if (!term) return;
+    
+    setIsGifLoading(true);
+    try {
+      // Using Tenor API - Replace with your actual API key
+      const response = await axios.get(
+        `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(term)}&key=AIzaSyDTFjqNkwJLgfgvYicIjvVDZmEVRUPE0JM&client_key=bereavemently&limit=8`
+      );
+      
+      setGifResults(response.data.results || []);
+    } catch (error) {
+      console.error("Error fetching GIFs:", error);
+      toast.error("Failed to fetch GIFs. Please try again.");
+      setGifResults([]);
+    } finally {
+      setIsGifLoading(false);
+    }
+  };
+
+  const selectGif = (gif) => {
+    const gifUrl = gif.media_formats.gif.url;
+    
+    setMessages((prevMessages) => [
+      ...prevMessages,
+      { 
+        type: "gif", 
+        content: gifUrl, 
+        isUser: true
+      }
+    ]);
+    
+    setChatHistory((prevHistory) => [
+      ...prevHistory,
+      `\nMe: [shared a gif: ${gif.content_description || "image"}]`
+    ]);
+    
+    setActiveToolbar(null);
+    setGifResults([]);
+    setGifSearchTerm("");
+    
+    // Trigger AI response to the GIF
+    handleGifSent(gif.content_description || "supportive image");
+  };
+
+  const handleGifSent = async (description) => {
+    setDailyMessageCount(dailyMessageCount + 1);
+    setIsTyping(true);
+    
+    try {
+      // Context for the AI to understand the user shared a GIF
+      const prompt = `
+        The user just shared a GIF related to "${description}". 
+        Respond in a supportive and understanding way, acknowledging the emotions they may be expressing through this image.
+        Keep your response focused on grief support and emotional validation.
+        Be genuinely warm, empathetic, and humane in your response.
+        
+        Format your response as a JSON object:
+        {
+          "message": "your empathetic response here"
+        }
+      `;
+      
+      const response = await generateAIResponse(prompt);
+      
+      if (response && response.message) {
+        setMessages((prevMessages) => [
+          ...prevMessages, 
+          { type: "text", content: response.message, isUser: false }
+        ]);
+        
+        setChatHistory((prevHistory) => [
+          ...prevHistory,
+          `\nBereavemently: ${response.message}`
+        ]);
+        
+        // Generate suggested follow-up responses
+        generateSuggestedResponses(response.message);
+      }
+    } catch (error) {
+      console.error("Error responding to GIF:", error);
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        {
+          type: "text",
+          content: "I appreciate you sharing that image with me. How are you feeling today?",
+          isUser: false
+        }
+      ]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
+  const generateDailyInsight = async () => {
+    try {
+      const userMessages = messages
+        .filter(msg => msg.isUser)
+        .map(msg => typeof msg.content === 'string' ? msg.content : msg.text)
+        .join(" ");
+      
+      if (userMessages.length < 50) return; // Not enough data
+      
+      const prompt = `
+        Based on this user's messages in a grief support chat, provide a thoughtful, personalized insight about their grief journey.
+        Messages: "${userMessages}"
+        
+        Create a short, meaningful insight that:
+        1. Validates their emotions
+        2. Offers gentle perspective
+        3. Provides hope without diminishing their grief
+        4. Is specific to their situation (not generic)
+        
+        Format as JSON:
+        {
+          "insight": "The personalized insight",
+          "quote": "A relevant, comforting quote about grief/healing" 
+        }
+      `;
+      
+      const response = await generateAIResponse(prompt);
+      
+      if (response && response.insight) {
+        setMessages(prev => [
+          ...prev,
+          {
+            type: "insight",
+            content: {
+              insight: response.insight,
+              quote: response.quote
+            },
+            isUser: false
+          }
+        ]);
+      }
+    } catch (error) {
+      console.error("Error generating insight:", error);
+    }
+  };
+
+  const generateSuggestedResponses = async (aiMessage) => {
+    try {
+      const prompt = `
+        Based on this AI response in a grief support conversation, generate 3 natural, brief follow-up responses the user might want to say.
+        
+        AI message: "${aiMessage}"
+        
+        Create varied options that:
+        1. Prompt further exploration of feelings
+        2. Ask for practical advice
+        3. Express gratitude or emotional reaction
+        
+        Each response should be 2-7 words and feel natural, not robotic.
+        
+        Format as JSON:
+        {
+          "options": [
+            {"text": "first suggested response", "icon": "heart"},
+            {"text": "second suggested response", "icon": "lightbulb"},
+            {"text": "third suggested response", "icon": "handHoldingHeart"}
+          ]
+        }
+        
+        Valid icons: heart, lightbulb, handHoldingHeart
+      `;
+      
+      const response = await generateAIResponse(prompt);
+      
+      if (response && response.options && response.options.length > 0) {
+        setSuggestedResponses(response.options);
+      } else {
+        setSuggestedResponses([]);
+      }
+    } catch (error) {
+      console.error("Error generating suggestions:", error);
+      setSuggestedResponses([]);
+    }
+  };
+
+  const sendSuggestedResponse = (text) => {
+    setInput(text);
+    setTimeout(() => onSend(), 100);
+    setSuggestedResponses([]);
+  };
+
+  // Render a message based on its type
+  const renderMessage = (message, index) => {
+    const isUser = message.isUser;
+    
+    if (message.type === "gif") {
+      return (
+        <MessageBubble key={index} isUser={isUser} className={isUser ? "user-message" : "ai-message"}>
+          {message.caption && <p className="mb-2">{message.caption}</p>}
+          <MessageImage src={message.content} alt="GIF" />
+        </MessageBubble>
+      );
+    } else if (message.type === "quote") {
+      return (
+        <MessageBubble key={index} isUser={isUser} className={isUser ? "user-message" : "ai-message"}>
+          <QuoteBlock>
+            <FontAwesomeIcon icon={faQuoteLeft} className="mr-2 opacity-60" />
+            "{message.content.text}"
+            <div className="mt-2 text-right font-medium">— {message.content.author}</div>
+          </QuoteBlock>
+        </MessageBubble>
+      );
+    } else if (message.type === "insight") {
+      return (
+        <MessageBubble key={index} isUser={isUser} className="ai-message insight-message">
+          <div className="mb-3 flex items-center">
+            <FontAwesomeIcon icon={faLightbulb} className="mr-2 text-yellow-300" />
+            <span className="font-semibold">Daily Reflection</span>
+          </div>
+          <p>{message.content.insight}</p>
+          {message.content.quote && (
+            <QuoteBlock className="mt-4">
+              <FontAwesomeIcon icon={faQuoteLeft} className="mr-2 opacity-60" />
+              {message.content.quote}
+            </QuoteBlock>
+          )}
+        </MessageBubble>
+      );
+    } else {
+      // Default text message
+      return (
+        <MessageBubble key={index} isUser={isUser} className={isUser ? "user-message" : "ai-message"}>
+          {message.content || message.text}
+        </MessageBubble>
+      );
+    }
+  };
+
+  // Render GIF search interface
+  const renderGifSearch = () => (
+    <div className="p-3 bg-gray-800 rounded-lg mb-4">
+      <div className="flex mb-3">
+        <input
+          type="text"
+          value={gifSearchTerm}
+          onChange={(e) => setGifSearchTerm(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && searchGifs(gifSearchTerm)}
+          placeholder="Search for a GIF..."
+          className="flex-1 px-4 py-2 bg-gray-700 text-white border-none rounded-l-lg focus:outline-none"
+        />
+        <button
+          onClick={() => searchGifs(gifSearchTerm)}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-r-lg"
+          disabled={isGifLoading}
+        >
+          {isGifLoading ? 
+            <FontAwesomeIcon icon={faSpinner} spin /> : 
+            "Search"
+          }
+        </button>
+      </div>
+      
+      {gifResults.length > 0 && (
+        <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto p-1">
+          {gifResults.map((gif, index) => (
+            <img
+              key={index}
+              src={gif.media_formats.tinygif.url}
+              alt={gif.content_description || `GIF ${index}`}
+              className="rounded cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => selectGif(gif)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  useEffect(() => {
+    // Show self-care prompt after 15 messages or 15 minutes, whichever comes first
+    if (messages.length > 0 && messages.length % 15 === 0 && !showSelfCarePrompt) {
+      generateSelfCareRecommendation();
+    }
+    
+    // Also check time-based trigger for self-care
+    const selfCareTimer = setTimeout(() => {
+      if (messages.length > 5 && !showSelfCarePrompt) {
+        generateSelfCareRecommendation();
+      }
+    }, 15 * 60 * 1000); // 15 minutes
+    
+    return () => clearTimeout(selfCareTimer);
+  }, [messages.length]);
+
+  const generateSelfCareRecommendation = async () => {
+    try {
+      // Get themes from recent messages
+      const recentMessages = messages.slice(-10)
+        .map(msg => typeof msg.content === 'string' ? msg.content : (msg.text || ""))
+        .join(" ");
+      
+      const prompt = `
+        Based on this segment of a grief support conversation, suggest a personalized self-care activity.
+        
+        Recent conversation: "${recentMessages}"
+        
+        Generate a brief, specific self-care recommendation that would be helpful for someone dealing with grief or loss.
+        The recommendation should:
+        1. Be simple and achievable in 5-15 minutes
+        2. Be sensitive to the person's emotional state
+        3. Connect to themes in their conversation if possible
+        4. Feel supportive, not dismissive of their grief
+        
+        Format as JSON:
+        {
+          "activity": "Brief title of the self-care activity",
+          "description": "2-3 sentence explanation of how to do it and why it might help",
+          "category": "physical, emotional, social, or mindfulness"
+        }
+      `;
+      
+      const response = await generateAIResponse(prompt);
+      
+      if (response && response.activity) {
+        setSelfCareRecommendation(response);
+        setShowSelfCarePrompt(true);
+      }
+    } catch (error) {
+      console.error("Error generating self-care:", error);
+    }
+  };
+
+  const dismissSelfCare = () => {
+    setShowSelfCarePrompt(false);
+    setSelfCareRecommendation(null);
+  };
+
+  const trySelfCare = () => {
+    if (!selfCareRecommendation || !selfCareRecommendation.activity) {
+      return;
+    }
+    
+    // Add message to conversation acknowledging the self-care activity
+    setMessages(prev => [
+      ...prev,
+      {
+        type: "text",
+        content: `I'll try the "${selfCareRecommendation.activity}" self-care activity.`,
+        isUser: true
+      }
+    ]);
+    
+    // Generate encouraging response
+    setIsTyping(true);
+    
+    setTimeout(async () => {
+      try {
+        const activityName = selfCareRecommendation.activity || 'self-care activity';
+        
+        const prompt = `
+          The user has agreed to try the self-care activity: "${activityName}".
+          
+          Write a brief, encouraging response that:
+          1. Positively reinforces their decision
+          2. Offers gentle support
+          3. Acknowledges that taking care of oneself during grief is important
+          
+          Keep it brief (2-3 sentences) and warm.
+          
+          Format as JSON:
+          {
+            "message": "your encouraging response"
+          }
+        `;
+        
+        const response = await generateAIResponse(prompt);
+        
+        if (response && response.message) {
+          setMessages(prev => [
+            ...prev,
+            {
+              type: "text",
+              content: response.message,
+              isUser: false
+            }
+          ]);
+        }
+      } catch (error) {
+        console.error("Error responding to self-care:", error);
+        setMessages(prev => [
+          ...prev,
+          {
+            type: "text",
+            content: "That's wonderful. Taking time for self-care is so important during difficult times. I'm here whenever you'd like to talk more.",
+            isUser: false
+          }
+        ]);
+      } finally {
+        setIsTyping(false);
+        setShowSelfCarePrompt(false);
+        setSelfCareRecommendation(null);
+      }
+    }, 1000);
+  };
+
+  // Add this function to handle sending messages from audio input
+  const handleAudioMessageSend = async (transcription) => {
+    // Use the existing input state to trigger the regular send flow
+    setInput(transcription);
+
+    // Call the existing onSend function
+    await onSend();
+  };
+
   // Helper function to extract emotions from text
   const extractEmotions = (text) => {
+    if (!text) return [];
+    
     const emotionKeywords = {
       grief: ["loss", "grief", "missing", "gone"],
       anger: ["angry", "frustrated", "upset"],
@@ -822,15 +1892,16 @@ const Chat = () => {
     };
 
     const foundEmotions = [];
-    for (const [emotion, keywords] of Object.entries(emotionKeywords)) {
+    Object.entries(emotionKeywords).forEach(([emotion, keywords]) => {
       if (keywords.some(keyword => text.toLowerCase().includes(keyword))) {
         foundEmotions.push(emotion);
       }
-    }
+    });
+    
     return foundEmotions;
   };
 
-  // Update the journal modal rendering
+  // Restore the renderJournalEntries function
   const renderJournalEntries = () => (
     <div className="space-y-6">
       {journalEntries.map((entry) => (
@@ -895,135 +1966,174 @@ const Chat = () => {
 
   return (
     <ThemeProvider theme={subscriptionPlans[currentPlan].theme}>
-      <ChatWrapper>
-        <MessagesContainer ref={messagesEndRef}>
-          <SafetyBanner>
-            ⚠️ Important: This is an AI-powered conversation. While I aim to provide support, I am not a replacement for professional mental health services. If you're experiencing severe emotional distress or having thoughts of self-harm, please contact emergency services or a mental health professional immediately.
-          </SafetyBanner>
-          {showTemplates && (
-            <ChatTemplatesContainer>
-              {chatTemplates.map((template, index) => (
-                <ChatTemplateButton
+      {showJournal && (
+        <JournalModal
+          onClose={() => setShowJournal(false)}
+          theme={subscriptionPlans[currentPlan].theme}
+        >
+          <JournalHeader>
+            <h2>Your Grief Journal</h2>
+            <p>
+              A personal record of your grief journey, with insights and reflections
+            </p>
+            <CloseButton onClick={() => setShowJournal(false)}>
+              <FontAwesomeIcon icon={faTimes} />
+            </CloseButton>
+          </JournalHeader>
+          {renderJournalEntries()}
+        </JournalModal>
+      )}
+
+      <ChatWrapper theme={subscriptionPlans[currentPlan].theme}>
+        {showSelfCarePrompt && selfCareRecommendation && (
+          <SelfCarePrompt theme={subscriptionPlans[currentPlan].theme}>
+            <SelfCareHeader>
+              <FontAwesomeIcon icon={faHandHoldingHeart} />
+              <h3>Self-Care Moment</h3>
+              <CloseButton onClick={dismissSelfCare}>
+                <FontAwesomeIcon icon={faTimes} />
+              </CloseButton>
+            </SelfCareHeader>
+            <SelfCareContent>
+              <p>{selfCareRecommendation.description || 'Try this self-care activity to help you during this difficult time.'}</p>
+              <p className="mt-2 font-semibold">{selfCareRecommendation.activity}</p>
+              <SelfCareActions>
+                <SelfCareButton onClick={trySelfCare}>
+                  Try This
+                </SelfCareButton>
+                <SelfCareSkipButton onClick={dismissSelfCare}>
+                  Maybe Later
+                </SelfCareSkipButton>
+              </SelfCareActions>
+            </SelfCareContent>
+          </SelfCarePrompt>
+        )}
+
+        <MessagesContainer ref={messagesEndRef} theme={subscriptionPlans[currentPlan].theme}>
+          {showTemplates && !messages.length ? (
+            <TemplatesWrapper>
+              <h2>How can Bereavemently help you today?</h2>
+              <TemplatesGrid>
+                {chatTemplates.map((template, index) => (
+                  <TemplateCard
                   key={index}
-                  onClick={() => setInput(template)}
-                >
-                  {template}
-                </ChatTemplateButton>
-              ))}
-            </ChatTemplatesContainer>
-          )}
-          {messages.map((message, index) => (
-            <MessageBubble
-              key={index}
-              isUser={message.isUser}
-              className={message.isUser ? "user-message" : "ai-message"}
-            >
-              {message.text}
-            </MessageBubble>
-          ))}
-          {isTyping && (
-            <TypingIndicator>AI is typing...</TypingIndicator>
+                    onClick={() => {
+                      setInput(template);
+                      setShowTemplates(false);
+                    }}
+                    theme={subscriptionPlans[currentPlan].theme}
+                  >
+                    <TemplateIcon theme={subscriptionPlans[currentPlan].theme}>
+                      <FontAwesomeIcon icon={faLightbulb} />
+                    </TemplateIcon>
+                    <TemplateTitle>{template.split(" ").slice(0, 3).join(" ")}...</TemplateTitle>
+                    <TemplateDescription>{template}</TemplateDescription>
+                  </TemplateCard>
+                ))}
+              </TemplatesGrid>
+            </TemplatesWrapper>
+          ) : (
+            <>
+              <SafetyBanner theme={subscriptionPlans[currentPlan].theme}>
+                <strong>Important:</strong> This AI is designed to provide grief support, but is not a replacement for professional mental health services. If you're experiencing a crisis or emergency, please contact a mental health professional or crisis service immediately.
+              </SafetyBanner>
+              {messages.map((message, index) => renderMessage(message, index))}
+              {isTyping && (
+                <TypingIndicator theme={subscriptionPlans[currentPlan].theme}>
+                  <div className="dot"></div>
+                  <div className="dot"></div>
+                  <div className="dot"></div>
+                </TypingIndicator>
+              )}
+            </>
           )}
         </MessagesContainer>
-        <InputContainer>
-          <IconButton
-            onClick={startSpeechRecognition}
-            disabled={limitExceeded || isSpeechRecognizing}
-          >
-            <FontAwesomeIcon icon={faMicrophone} />
-          </IconButton>
-          <JournalButton onClick={() => setShowJournal(true)} marginLeft="10px">
-            <FontAwesomeIcon icon={faBook} />
-          </JournalButton>
-        </InputContainer>
-        {!limitExceeded && (
-          <InputContainer>
-            <TextInput
-              type="text"
+
+        {/* Audio Conversation Component */}
+        {showAudioConversation && (
+          <AudioConversation
+            theme={subscriptionPlans[currentPlan].theme}
+            onSendMessage={handleAudioMessageSend}
+            isBotSpeaking={isBotSpeaking}
+            setIsBotSpeaking={setIsBotSpeaking}
+            currentPlan={currentPlan}
+            latestAiMessage={latestAiMessage}
+          />
+        )}
+
+        <InputContainer theme={subscriptionPlans[currentPlan].theme}>
+          {activeToolbar === "gif" && renderGifSearch()}
+          
+          <InputWrapper theme={subscriptionPlans[currentPlan].theme}>
+            <InputField
+              placeholder={
+                limitExceeded
+                  ? "You've reached your daily message limit"
+                  : "Type your message..."
+              }
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Type your message..."
-              disabled={limitExceeded}
-              style={{ marginLeft: 10 }}
+              disabled={limitExceeded || isTyping}
+              theme={subscriptionPlans[currentPlan].theme}
             />
-            <IconButton onClick={onSend} disabled={limitExceeded}>
-              <FontAwesomeIcon icon={faPaperPlane} />
-            </IconButton>
-            <IconButton
-              onClick={resetChat}
-              bgColor="#e74c3c"
-              hoverColor="#c0392b"
-              marginLeft="10px"
-            >
-              <FontAwesomeIcon icon={faUndoAlt} />
-            </IconButton>
-          </InputContainer>
-        )}
-        {limitExceeded && (
-          <div style={{ padding: "20px", textAlign: "center", color: "#fff" }}>
-            <p>You have reached your daily message limit.</p>
-            <button onClick={() => navigate("/subscribe")}>
-              Upgrade to send more messages
-            </button>
-          </div>
-        )}
-      </ChatWrapper>
-      {showJournal && (
-        <>
-          <div
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: 'rgba(0,0,0,0.5)',
-              zIndex: 999
-            }}
-            onClick={() => setShowJournal(false)}
-          />
-          <JournalModal>
-            <JournalHeader>
-              <h2>Emotional Journey Journal</h2>
-              <button
-                onClick={() => setShowJournal(false)}
-                className="p-2 hover:bg-gray-700 rounded-full transition-colors"
+
+            <ButtonGroup>
+
+          <ToolbarButton 
+                type="button"
+            onClick={() => setShowJournal(true)}
+            title="View Journal"
+          >
+            <FontAwesomeIcon icon={faBook} />
+          </ToolbarButton>
+          
+              <MicButton
+                type="button"
+            onClick={startSpeechRecognition}
+                disabled={limitExceeded || isTyping}
+                title="Voice message"
+                theme={subscriptionPlans[currentPlan].theme}
+                active={showAudioConversation}
               >
-                <FontAwesomeIcon icon={faTimes} className="text-white" />
-              </button>
-            </JournalHeader>
+                <FontAwesomeIcon icon={faMicrophone} />
+              </MicButton>
 
-            <div className="mb-6">
-              <div className="flex gap-4 items-center mb-4">
-                <input
-                  type="text"
-                  placeholder="Search journal entries..."
-                  className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg 
-                           text-white placeholder-gray-400 focus:outline-none focus:ring-2 
-                           focus:ring-indigo-500"
-                />
-                <button
-                  className="p-2 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 
-                           transition-colors"
+              <SendButton
+                type="button"
+                onClick={onSend}
+                disabled={!input.trim() || limitExceeded || isTyping}
+                theme={subscriptionPlans[currentPlan].theme}
+              >
+              <FontAwesomeIcon icon={faPaperPlane} />
+              </SendButton>
+            </ButtonGroup>
+          </InputWrapper>
+
+          {suggestedResponses.length > 0 && (
+            <SuggestionChips>
+              {suggestedResponses.map((suggestion, index) => (
+                <SuggestionChip
+                  key={index}
+                  onClick={() => sendSuggestedResponse(suggestion.text)}
+                  theme={subscriptionPlans[currentPlan].theme}
                 >
-                  <FontAwesomeIcon icon={faPlus} />
-                </button>
-              </div>
-            </div>
+                  {getIconComponent(suggestion.icon)}
+                  {suggestion.text}
+                </SuggestionChip>
+              ))}
+            </SuggestionChips>
+          )}
 
-            {journalEntries.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-gray-400 text-lg">
-                  No journal entries yet. Your journey will be documented here as you chat.
-                </p>
-              </div>
-            ) : (
-              renderJournalEntries()
-            )}
-          </JournalModal>
-        </>
-      )}
+          <ResetButton
+            onClick={resetChat}
+            theme={subscriptionPlans[currentPlan].theme}
+          >
+            <FontAwesomeIcon icon={faUndoAlt} />
+            Start New Conversation
+          </ResetButton>
+        </InputContainer>
+      </ChatWrapper>
     </ThemeProvider>
   );
 };

@@ -243,10 +243,10 @@ const LandingPage = ({ onStartChat }) => {
   };
 
   return (
-    <div className="font-sans text-gray-800 bg-gradient-to-b from-blue-50 to-white min-h-screen">
-      {/* Hero Section with Floating Elements */}
-      <div className="relative min-h-[90vh] flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12 md:py-20">
-        {/* Background animations */}
+    <div className="font-sans text-gray-800 bg-gradient-to-b from-blue-50 via-white to-indigo-50 min-h-screen">
+      {/* Hero Section with Floating Elements - Enhanced */}
+      <div className="relative min-h-[90vh] flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12 md:py-20 overflow-hidden">
+        {/* Enhanced background animations */}
         <div className="absolute inset-0 z-0 overflow-hidden">
           <motion.div 
             className="absolute inset-0 bg-gradient-to-br from-indigo-400/20 via-purple-500/20 to-pink-500/20"
@@ -255,16 +255,27 @@ const LandingPage = ({ onStartChat }) => {
             transition={{ duration: 3, repeat: Infinity, repeatType: "reverse" }}
           />
           
-          {/* Reduce number of floating elements on mobile */}
-          {[...Array(window.innerWidth > 768 ? 12 : 6)].map((_, index) => (
+          {/* Elegant floating elements */}
+          <svg className="absolute w-full h-full">
+            <defs>
+              <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="10" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
+            </defs>
+          </svg>
+          
+          {[...Array(window.innerWidth > 768 ? 14 : 7)].map((_, index) => (
             <motion.div
               key={index}
-              className="absolute rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center"
+              className="absolute rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center filter"
               style={{
                 width: Math.random() * (window.innerWidth > 768 ? 100 : 60) + 50,
                 height: Math.random() * (window.innerWidth > 768 ? 100 : 60) + 50,
                 top: `${Math.random() * 100}%`,
                 left: `${Math.random() * 100}%`,
+                filter: 'drop-shadow(0 0 8px rgba(129, 140, 248, 0.5))',
+                boxShadow: '0 0 20px rgba(129, 140, 248, 0.2) inset',
               }}
               initial={{ scale: 0, opacity: 0 }}
               animate={{
@@ -278,96 +289,127 @@ const LandingPage = ({ onStartChat }) => {
                 delay: Math.random() * 2,
               }}
             >
-              <Sparkles className="text-indigo-400/50" size={window.innerWidth > 768 ? 20 : 16} />
+              {index % 3 === 0 && <Sparkles className="text-indigo-400/50" size={window.innerWidth > 768 ? 20 : 16} />}
+              {index % 3 === 1 && <Sun className="text-purple-400/50" size={window.innerWidth > 768 ? 22 : 18} />}
+              {index % 3 === 2 && <Feather className="text-pink-400/50" size={window.innerWidth > 768 ? 24 : 20} />}
             </motion.div>
           ))}
         </div>
 
-        {/* Main content */}
+        {/* Enhanced main content */}
         <motion.div 
           className="relative z-10 text-center max-w-4xl mx-auto px-4 sm:px-6 lg:px-8"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1 }}
         >
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-transparent bg-clip-text leading-tight">
+          <motion.div
+            className="mb-6 relative inline-block"
+            whileHover={{ scale: 1.05 }}
+            transition={{ type: "spring", stiffness: 300 }}
+          >
+            <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold mb-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-transparent bg-clip-text leading-tight tracking-tighter">
             Bereavemently
           </h1>
+            <motion.div 
+              className="absolute -bottom-2 left-0 right-0 h-1 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 opacity-70"
+              initial={{ width: "0%" }}
+              animate={{ width: "100%" }}
+              transition={{ delay: 0.5, duration: 1 }}
+            />
+          </motion.div>
 
-          <p className="text-lg md:text-xl lg:text-2xl mb-8 font-light text-gray-700 leading-relaxed max-w-2xl mx-auto">
-            A gentle AI companion for your journey through grief,
+          <p className="text-xl md:text-2xl lg:text-3xl mb-8 font-light text-gray-700 leading-relaxed max-w-3xl mx-auto">
+            A <span className="italic text-indigo-700">gentle companion</span> for your journey through grief,
             <br className="hidden sm:block" />
             available whenever you need a moment of understanding.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+          <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mt-10">
             <motion.button
               onClick={handleStartChat}
-              className="px-8 py-4 text-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white 
-                         rounded-full shadow-lg hover:shadow-xl transition duration-300 flex items-center 
-                         justify-center group"
+              className="px-10 py-4 text-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white 
+                       rounded-full shadow-xl hover:shadow-2xl transition duration-300 flex items-center 
+                       justify-center group relative overflow-hidden"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              Begin Your Journey
-              <Sun className="ml-2 group-hover:rotate-90 transition-transform duration-300" />
+              <span className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+              <span className="relative z-10">Begin Your Journey</span>
+              <Sun className="ml-3 relative z-10 group-hover:rotate-90 transition-transform duration-300" />
             </motion.button>
 
             <motion.button
               onClick={() => setShowTrialChat(true)}
-              className="px-8 py-4 text-lg border-2 border-indigo-600 text-indigo-600 
-                         rounded-full hover:bg-indigo-50 transition duration-300"
+              className="px-10 py-4 text-lg border-2 border-indigo-600 text-indigo-600 
+                       rounded-full hover:bg-indigo-50 transition duration-300 relative overflow-hidden group"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              Try a Gentle Chat
+              <span className="absolute inset-0 bg-indigo-50 transform scale-x-0 origin-left group-hover:scale-x-100 transition-transform duration-300"></span>
+              <span className="relative z-10">Try a Gentle Chat</span>
             </motion.button>
           </div>
         </motion.div>
       </div>
 
-      {/* Testimonials Section */}
-      <section className="py-20 bg-gradient-to-b from-white to-indigo-50">
-        <div className="max-w-6xl mx-auto px-4">
-          <motion.h2
-            className="text-4xl font-bold text-center mb-16 text-indigo-600"
+      {/* Enhanced Testimonials Section */}
+      <section className="py-24 bg-gradient-to-b from-white to-indigo-50 relative overflow-hidden">
+        {/* Decorative elements */}
+        <div className="absolute top-0 inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-100 to-transparent opacity-50"></div>
+        
+        <div className="max-w-6xl mx-auto px-4 relative z-10">
+          <motion.div 
+            className="text-center mb-16"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
+            <h2 className="text-4xl md:text-5xl font-bold text-center mb-4 bg-gradient-to-r from-indigo-700 via-purple-700 to-indigo-700 bg-clip-text text-transparent">
             Healing Stories
-          </motion.h2>
+            </h2>
+            <div className="h-1 w-20 bg-gradient-to-r from-indigo-600 to-purple-600 mx-auto"></div>
+          </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
               {
                 quote: "In my darkest moments, Bereavemently was there to listen without judgment.",
                 author: "Sarah M.",
-                emotion: "Finding Light"
+                emotion: "Finding Light",
+                color: "from-indigo-600 to-blue-600"
               },
               {
                 quote: "The AI's gentle guidance helped me process my grief in ways I never expected.",
                 author: "James K.",
-                emotion: "Growing Stronger"
+                emotion: "Growing Stronger",
+                color: "from-purple-600 to-pink-600"
               },
               {
                 quote: "Having support available 24/7 made all the difference in my healing journey.",
                 author: "Emily R.",
-                emotion: "Moving Forward"
+                emotion: "Moving Forward",
+                color: "from-indigo-600 to-purple-600"
               }
             ].map((testimonial, index) => (
               <motion.div
                 key={index}
-                className="bg-white p-8 rounded-2xl shadow-lg relative overflow-hidden"
+                className="bg-white p-8 rounded-2xl shadow-lg relative overflow-hidden border border-gray-100"
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.2 }}
+                whileHover={{ 
+                  y: -5, 
+                  boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.1)",
+                  borderColor: "rgba(129, 140, 248, 0.5)"
+                }}
               >
-                <div className="absolute top-0 right-0 w-20 h-20 bg-indigo-100 rounded-bl-full opacity-50" />
-                <p className="text-gray-600 mb-6 relative z-10">{testimonial.quote}</p>
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
+                <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl ${testimonial.color} rounded-bl-full opacity-10`} />
+                <div className="text-4xl text-indigo-200 mb-4 font-serif">"</div>
+                <p className="text-gray-700 mb-6 relative z-10 text-lg italic">{testimonial.quote}</p>
+                <div className="flex items-center gap-4 relative z-10">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-r ${testimonial.color} bg-opacity-10`}>
                     <Heart className="text-indigo-600" size={20} />
                   </div>
                   <div>
@@ -381,57 +423,66 @@ const LandingPage = ({ onStartChat }) => {
         </div>
       </section>
 
-      {/* Features Section with Animation */}
-      <section className="py-16 md:py-20 px-4 sm:px-6 lg:px-8 bg-white">
-        <div className="max-w-6xl mx-auto">
+      {/* Enhanced Features Section with Animation */}
+      <section className="py-20 md:py-24 px-4 sm:px-6 lg:px-8 bg-white relative overflow-hidden">
+        {/* Decorative background */}
+        <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
+        <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-white to-transparent z-10"></div>
+        
+        <div className="max-w-6xl mx-auto relative z-10">
           <motion.div 
-            className="text-center mb-12 md:mb-16"
+            className="text-center mb-16 md:mb-20"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-3xl md:text-4xl font-bold text-indigo-600 mb-4">
+            <h2 className="text-3xl md:text-5xl font-bold text-indigo-600 mb-6">
               Your Companion Through Grief
             </h2>
             <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto">
               Available 24/7 with understanding, empathy, and guidance
             </p>
+            <div className="h-1 w-20 bg-gradient-to-r from-indigo-600 to-purple-600 mx-auto mt-6"></div>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10">
             {[
               {
                 icon: <Clock size={32} />,
                 title: "Always Here",
-                description: "Find support any time, day or night, whenever you need someone to talk to."
+                description: "Find support any time, day or night, whenever you need someone to talk to.",
+                gradient: "from-blue-600 to-indigo-600"
               },
               {
                 icon: <Heart size={32} />,
                 title: "Empathetic Understanding",
-                description: "Experience compassionate responses tailored to your unique journey."
+                description: "Experience compassionate responses tailored to your unique journey.",
+                gradient: "from-indigo-600 to-purple-600"
               },
               {
                 icon: <Shield size={32} />,
                 title: "Safe Space",
-                description: "Share freely in a private, judgment-free environment focused on your healing."
+                description: "Share freely in a private, judgment-free environment focused on your healing.",
+                gradient: "from-purple-600 to-pink-600"
               }
             ].map((feature, index) => (
               <motion.div
                 key={index}
-                className="p-8 bg-gradient-to-br from-white to-indigo-50 rounded-2xl shadow-lg 
+                className="p-8 bg-white rounded-2xl shadow-lg border border-gray-100
                            hover:shadow-xl transition-all duration-300"
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.2 }}
-                whileHover={{ y: -5 }}
+                whileHover={{ y: -5, borderColor: "rgba(129, 140, 248, 0.5)" }}
               >
-                <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center 
-                              text-indigo-600 mb-6">
+                <div className={`w-16 h-16 bg-gradient-to-r ${feature.gradient} rounded-2xl flex items-center justify-center 
+                              text-white mb-6 transform -rotate-3 shadow-lg`}>
                   {feature.icon}
                 </div>
                 <h3 className="text-xl font-semibold mb-4 text-gray-800">{feature.title}</h3>
                 <p className="text-gray-600">{feature.description}</p>
+                <div className="mt-6 w-12 h-1 bg-gradient-to-r from-indigo-400 to-purple-400 rounded-full"></div>
               </motion.div>
             ))}
           </div>
@@ -447,15 +498,15 @@ const LandingPage = ({ onStartChat }) => {
       >
         {!showTrialChat ? (
           <div className="px-4 md:px-0">
-            <button
-              onClick={() => setShowTrialChat(true)}
+          <button
+            onClick={() => setShowTrialChat(true)}
               className="w-full md:w-auto px-6 py-4 bg-indigo-600 text-white rounded-full
                        shadow-lg hover:bg-indigo-700 transition duration-300 text-base sm:text-lg
                        flex items-center justify-center space-x-2"
-            >
+          >
               <span>Tell us what brings you here today</span>
               <ChevronRight className="w-5 h-5" />
-            </button>
+          </button>
           </div>
         ) : (
           <div className="bg-white h-full w-full md:w-auto rounded-t-xl md:rounded-lg shadow-xl 
@@ -571,59 +622,130 @@ const LandingPage = ({ onStartChat }) => {
         </div>
       </div>
 
-      {/* Pilot Program Section */}
-      <section className="py-16 bg-gradient-to-r from-indigo-50 to-blue-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="text-3xl font-bold text-gray-900 mb-8">Pilot Program</h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-              Join our exclusive pilot program and be among the first to experience our innovative AI-powered grief support platform.
-            </p>
-            <button
-              onClick={() => navigate('/signup')}
-              className="bg-indigo-600 text-white px-8 py-3 rounded-full text-lg font-semibold hover:bg-indigo-700 transition-colors duration-300"
-            >
-              Join the Pilot Program
-            </button>
+      {/* Enhanced Pilot Program Section */}
+      <section className="py-20 bg-gradient-to-r from-indigo-50 to-blue-50 relative overflow-hidden">
+        {/* Decorative elements */}
+        <div className="absolute inset-0 bg-pattern-dots opacity-5"></div>
+        
+        {/* Floating elements */}
+        {[...Array(6)].map((_, index) => (
+          <motion.div
+            key={index}
+            className="absolute rounded-full bg-white shadow-md"
+            style={{
+              width: Math.random() * 60 + 20,
+              height: Math.random() * 60 + 20,
+              top: `${Math.random() * 100}%`,
+              left: `${Math.random() * 100}%`,
+              opacity: 0.3
+            }}
+            animate={{
+              y: [0, -10, 0],
+              opacity: [0.3, 0.5, 0.3]
+            }}
+            transition={{
+              duration: Math.random() * 5 + 3,
+              repeat: Infinity,
+              repeatType: "reverse"
+            }}
+          />
+        ))}
+        
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="bg-white/80 backdrop-blur-md p-10 md:p-16 rounded-3xl shadow-xl border border-indigo-100">
+            <div className="text-center max-w-3xl mx-auto">
+              <motion.h2 
+                className="text-3xl md:text-4xl font-bold text-gray-900 mb-6"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+              >
+                <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
+                  Pilot Program
+                </span>
+              </motion.h2>
+              <motion.p 
+                className="text-xl text-gray-600 mb-10"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.2 }}
+              >
+                Join our exclusive pilot program and be among the first to experience our innovative AI-powered grief support platform.
+              </motion.p>
+              <motion.button
+                onClick={() => navigate('/signup')}
+                className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-10 py-4 rounded-full text-lg font-semibold hover:shadow-lg hover:shadow-indigo-200 transition-all duration-300"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.4 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                Join the Pilot Program
+              </motion.button>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Elegant Footer */}
-      <footer className="bg-gradient-to-b from-white to-indigo-50 pt-16 pb-8">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-12">
+      {/* Add CSS for the background patterns */}
+      <style jsx>{`
+        .bg-grid-pattern {
+          background-image: 
+            linear-gradient(to right, rgba(0,0,0,0.05) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(0,0,0,0.05) 1px, transparent 1px);
+          background-size: 20px 20px;
+        }
+        
+        .bg-pattern-dots {
+          background-image: radial-gradient(rgba(129, 140, 248, 0.4) 2px, transparent 2px);
+          background-size: 30px 30px;
+        }
+      `}</style>
+
+      {/* Enhanced Elegant Footer */}
+      <footer className="bg-gradient-to-b from-white to-indigo-50 pt-20 pb-10 relative overflow-hidden">
+        {/* Decorative elements */}
+        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-indigo-300 to-transparent opacity-70"></div>
+        <div className="absolute inset-0 bg-pattern-dots opacity-[0.03]"></div>
+        
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 md:gap-14">
             {/* Company info */}
             <div className="col-span-1 md:col-span-2 lg:col-span-1">
-              <h3 className="text-xl font-semibold text-indigo-600 mb-4">Bereavemently</h3>
-              <p className="text-gray-600 mb-6">
+              <div className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
+                <h3 className="text-2xl font-bold mb-6">Bereavemently</h3>
+              </div>
+              <p className="text-gray-600 mb-8 leading-relaxed">
                 Providing compassionate AI support for those navigating the journey of grief and loss.
               </p>
-              <div className="flex space-x-4">
+              <div className="flex space-x-5">
                 <a 
                   href="#" 
-                  className="text-indigo-600 hover:text-indigo-500 transition-colors duration-300"
+                  className="text-indigo-500 hover:text-indigo-700 transition-colors duration-300 transform hover:scale-110"
                   aria-label="Twitter"
                 >
                   <FontAwesomeIcon icon={faTwitter} size="lg" />
                 </a>
                 <a 
                   href="#" 
-                  className="text-indigo-600 hover:text-indigo-500 transition-colors duration-300"
+                  className="text-indigo-500 hover:text-indigo-700 transition-colors duration-300 transform hover:scale-110"
                   aria-label="LinkedIn"
                 >
                   <FontAwesomeIcon icon={faLinkedin} size="lg" />
                 </a>
                 <a 
                   href="#" 
-                  className="text-indigo-600 hover:text-indigo-500 transition-colors duration-300"
+                  className="text-indigo-500 hover:text-indigo-700 transition-colors duration-300 transform hover:scale-110"
                   aria-label="Instagram"
                 >
                   <FontAwesomeIcon icon={faInstagram} size="lg" />
                 </a>
                 <a 
                   href="#" 
-                  className="text-indigo-600 hover:text-indigo-500 transition-colors duration-300"
+                  className="text-indigo-500 hover:text-indigo-700 transition-colors duration-300 transform hover:scale-110"
                   aria-label="Facebook"
                 >
                   <FontAwesomeIcon icon={faFacebook} size="lg" />
@@ -632,49 +754,57 @@ const LandingPage = ({ onStartChat }) => {
             </div>
 
             {/* Quick links */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 col-span-1 md:col-span-2 lg:col-span-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 col-span-1 md:col-span-2 lg:col-span-3 gap-8 md:gap-10">
               <div>
-                <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">Resources</h4>
-                <ul className="space-y-3">
+                <h4 className="text-base font-semibold text-gray-900 uppercase tracking-wider mb-5">Resources</h4>
+                <ul className="space-y-4">
                   <li>
-                    <a href="https://missumuch.com" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-indigo-600 transition-colors duration-300">
+                    <a href="https://missumuch.com" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-indigo-600 transition-colors duration-300 flex items-center">
+                      <ChevronRight className="w-4 h-4 mr-2 text-indigo-400" />
                       Missumuch.com
+                    </a>
+                  </li>
+                  <li>
+                    <a href="#" className="text-gray-600 hover:text-indigo-600 transition-colors duration-300 flex items-center">
+                      <ChevronRight className="w-4 h-4 mr-2 text-indigo-400" />
+                      Support Articles
                     </a>
                   </li>
                 </ul>
               </div>
 
               <div>
-                <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">Company</h4>
-                <ul className="space-y-3">
+                <h4 className="text-base font-semibold text-gray-900 uppercase tracking-wider mb-5">Company</h4>
+                <ul className="space-y-4">
                   <li>
-                    <a href="#" className="text-gray-600 hover:text-indigo-600 transition-colors duration-300">
+                    <a href="#" className="text-gray-600 hover:text-indigo-600 transition-colors duration-300 flex items-center">
+                      <ChevronRight className="w-4 h-4 mr-2 text-indigo-400" />
                       About Us
                     </a>
                   </li>
                   <li>
-                    <a href="/privacy-policy" className="text-gray-600 hover:text-indigo-600 transition-colors duration-300">
+                    <a href="/privacy-policy" className="text-gray-600 hover:text-indigo-600 transition-colors duration-300 flex items-center">
+                      <ChevronRight className="w-4 h-4 mr-2 text-indigo-400" />
                       Privacy
                     </a>
                   </li>
                   <li>
-                    <a href="#" className="text-gray-600 hover:text-indigo-600 transition-colors duration-300">
+                    <a href="#" className="text-gray-600 hover:text-indigo-600 transition-colors duration-300 flex items-center">
+                      <ChevronRight className="w-4 h-4 mr-2 text-indigo-400" />
                       Terms
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="text-gray-600 hover:text-indigo-600 transition-colors duration-300">
-                      Contact
                     </a>
                   </li>
                 </ul>
               </div>
 
               <div>
-                <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">Contact</h4>
-                <ul className="space-y-3">
+                <h4 className="text-base font-semibold text-gray-900 uppercase tracking-wider mb-5">Contact</h4>
+                <ul className="space-y-4">
                   <li>
-                    <a href="mailto:Christine@missumuch.com" className="text-gray-600 hover:text-indigo-600 transition-colors duration-300">
+                    <a href="mailto:Christine@missumuch.com" className="text-gray-600 hover:text-indigo-600 transition-colors duration-300 flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
                       Christine@missumuch.com
                     </a>
                   </li>
@@ -684,17 +814,20 @@ const LandingPage = ({ onStartChat }) => {
           </div>
 
           {/* Copyright */}
-          <div className="mt-12 pt-8 border-t border-gray-200">
+          <div className="mt-14 pt-8 border-t border-gray-200">
             <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
               <p className="text-gray-500 text-sm text-center md:text-left">
                 © {new Date().getFullYear()} Bereavemently. All rights reserved.
               </p>
-              <div className="flex space-x-4">
-                <a href="#" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors duration-300">
+              <div className="flex space-x-6">
+                <a href="/privacy-policy" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors duration-300">
                   Privacy Policy
                 </a>
                 <a href="#" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors duration-300">
                   Terms of Service
+                </a>
+                <a href="#" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors duration-300">
+                  Cookies
                 </a>
               </div>
             </div>

@@ -18,6 +18,8 @@ const ProfileContainer = styled.div`
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
+  position: relative;
+  z-index: 10;
 `;
 
 const ProfileHeader = styled.div`

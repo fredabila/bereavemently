@@ -2,3 +2,261 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Base styles */
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden; /* Prevent horizontal scroll on mobile */
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+/* Audio Conversation Component Styles */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  background-color: rgba(255, 255, 255, 0.1);
+  width: fit-content;
+  margin: 8px 0;
+}
+
+.typing-indicator .dot {
+  width: 8px;
+  height: 8px;
+  background-color: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  animation: typing-dot 1.4s infinite ease-in-out;
+}
+
+.typing-indicator .dot:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.typing-indicator .dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-indicator .dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typing-dot {
+  0%, 60%, 100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-5px);
+  }
+}
+
+/* Chat Interface Improvements */
+.suggestion-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.suggestion-chip {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: white;
+  border: none;
+  border-radius: 20px;
+  padding: 8px 14px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+}
+
+.suggestion-chip:hover {
+  background-color: rgba(255, 255, 255, 0.25);
+}
+
+.suggestion-chip svg {
+  margin-right: 6px;
+  font-size: 0.8rem;
+}
+
+.input-wrapper {
+  display: flex;
+  align-items: center;
+  background-color: rgba(40, 40, 56, 0.8);
+  border-radius: 24px;
+  padding: 4px 4px 4px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  width: 100%;
+}
+
+.button-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 8px;
+}
+
+/* Responsive styles for audio visualization */
+@media (max-width: 768px) {
+  .audio-visualizer {
+    height: 50px;
+  }
+  
+  .audio-controls {
+    gap: 10px;
+  }
+  
+  .audio-button-large {
+    width: 50px;
+    height: 50px;
+  }
+  
+  .audio-button {
+    width: 38px;
+    height: 38px;
+  }
+  
+  .settings-panel {
+    width: 280px;
+    max-width: 90vw;
+  }
+
+  .suggestion-chips {
+    gap: 6px;
+    margin-top: 10px;
+  }
+  
+  .suggestion-chip {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .audio-visualizer {
+    height: 40px;
+  }
+  
+  .audio-controls {
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .audio-button-large {
+    width: 45px;
+    height: 45px;
+  }
+  
+  .audio-button {
+    width: 34px;
+    height: 34px;
+  }
+  
+  .settings-panel {
+    width: 220px;
+    right: 0;
+    left: 0;
+    margin: 0 auto;
+  }
+  
+  /* Additional mobile optimizations */
+  .typing-indicator {
+    padding: 6px 12px;
+  }
+  
+  .typing-indicator .dot {
+    width: 6px;
+    height: 6px;
+  }
+
+  .input-wrapper {
+    padding: 3px 3px 3px 12px;
+  }
+  
+  .button-group {
+    gap: 4px;
+    margin-left: 4px;
+  }
+  
+  .suggestion-chips {
+    margin-top: 8px;
+    justify-content: center;
+  }
+  
+  .suggestion-chip {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+  }
+
+  /* Fix for message bubbles */
+  .user-message, .ai-message {
+    max-width: 95%;
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+}
+
+/* Small Phone Optimizations */
+@media (max-width: 360px) {
+  .audio-controls {
+    padding: 5px;
+  }
+  
+  .audio-button-large {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .audio-button {
+    width: 30px;
+    height: 30px;
+  }
+  
+  .audio-visualizer {
+    height: 35px;
+  }
+  
+  .settings-panel {
+    width: 190px;
+    padding: 10px;
+  }
+
+  .input-wrapper {
+    padding: 2px 2px 2px 8px;
+  }
+  
+  .button-group {
+    gap: 2px;
+    margin-left: 2px;
+  }
+  
+  .suggestion-chip {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+  }
+  
+  .suggestion-chip svg {
+    font-size: 0.7rem;
+    margin-right: 4px;
+  }
+
+  /* Smaller text for very small screens */
+  .user-message, .ai-message {
+    font-size: 13px;
+    line-height: 1.4;
+  }
+}

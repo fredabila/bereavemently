@@ -56,7 +56,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-400 via-blue-500 to-indigo-600">
+    <div className="min-h-screen pt-16 sm:pt-20 flex items-center justify-center bg-gradient-to-br from-blue-400 via-blue-500 to-indigo-600">
       <div className="bg-white bg-opacity-10 backdrop-blur-lg rounded-3xl p-8 max-w-md w-full shadow-2xl">
         <div className="flex items-center justify-center mb-8">
           <Sparkles className="text-blue-200 mr-2" size={32} />
