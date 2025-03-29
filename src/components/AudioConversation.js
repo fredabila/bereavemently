@@ -1,740 +1,917 @@
 import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
+import { motion, AnimatePresence } from 'framer-motion';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faMicrophone,
+  faVolumeUp,
   faStop,
   faPause,
   faPlay,
-  faVolumeUp,
-  faVolumeOff,
-  faSpinner,
-  faExclamationTriangle,
-  faCheckCircle,
-  faCog
+  faHeadphones,
+  faSliders,
+  faXmark,
+  faSpinner
 } from '@fortawesome/free-solid-svg-icons';
+
 import { 
   convertTextToSpeech, 
-  playAudio, 
-  createSpeechRecognition, 
-  visualizeAudio 
+  playAudio,
+  createAudioContext,
+  createEnhancedSpeechRecognition,
+  createVisualizer,
+  getVoiceModels
 } from '../utils/audioUtils';
 
-// Styled Components
-const AudioContainer = styled.div`
+// ========= Styled Components =========
+
+const Container = styled(motion.div)`
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 15px;
-  padding: 15px;
   width: 100%;
-  background-color: ${({ theme }) => theme.secondary || '#303040'};
-  border-radius: 12px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: ${({ theme }) => theme.secondary || '#232333'};
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
   margin-bottom: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+`;
+
+const VisualizerContainer = styled.div`
+  position: relative;
+  width: 100%;
+  height: 100px;
+  background: rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  
+  @media (max-width: 768px) {
+    height: 80px;
+  }
   
   @media (max-width: 480px) {
-    padding: 12px 10px;
-    gap: 10px;
+    height: 60px;
   }
 `;
 
-const ButtonsContainer = styled.div.attrs({
-  className: 'audio-controls'
-})`
-  display: flex;
-  align-items: center;
-  gap: 15px;
+const VisualizerCanvas = styled.canvas`
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
-  justify-content: center;
+  height: 100%;
 `;
 
-const AudioButton = styled.button.attrs(props => ({
-  className: props.size === 'large' ? 'audio-button-large' : 'audio-button'
-}))`
+const StateIndicator = styled.div`
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(5px);
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: white;
+  
+  svg {
+    margin-right: 8px;
+  }
+  
+  @media (max-width: 480px) {
+    top: 8px;
+    left: 8px;
+    padding: 4px 8px;
+    font-size: 12px;
+    border-radius: 12px;
+  }
+`;
+
+const ControlsContainer = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  width: ${({ size }) => size === 'large' ? '60px' : '45px'};
-  height: ${({ size }) => size === 'large' ? '60px' : '45px'};
-  border-radius: 50%;
-  background: ${({ theme, primary }) => primary ? theme.primary || '#5a5abf' : 'rgba(255, 255, 255, 0.1)'};
-  border: none;
-  color: white;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
-  position: relative;
-  overflow: hidden;
+  padding: 16px;
+  gap: 16px;
+  
+  @media (max-width: 480px) {
+    padding: 12px;
+    gap: 12px;
+  }
+`;
 
+const MainButton = styled(motion.button)`
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: none;
+  background: ${({ theme, active }) => 
+    active ? 
+    (theme.gradient || `linear-gradient(135deg, ${theme.primary || '#4a6cf7'}, ${theme.primary || '#4a6cf7'}cc)`) : 
+    'rgba(255, 255, 255, 0.08)'
+  };
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  box-shadow: ${({ active }) => 
+    active ? 
+    '0 4px 20px rgba(0, 0, 0, 0.3)' : 
+    '0 2px 10px rgba(0, 0, 0, 0.1)'
+  };
+  
   &:hover {
-    transform: scale(1.05);
-    background: ${({ theme, primary }) => primary ? 
-      (theme.gradient || `linear-gradient(135deg, ${theme.primary || '#5a5abf'}, #6a6acf)`) : 
-      'rgba(255, 255, 255, 0.2)'
+    transform: ${({ disabled }) => disabled ? 'none' : 'scale(1.05)'};
+    background: ${({ theme, active, disabled }) => 
+      disabled ? 'rgba(255, 255, 255, 0.08)' : 
+      active ? 
+      (theme.gradient || `linear-gradient(135deg, ${theme.primary || '#4a6cf7'}, ${theme.primary || '#4a6cf7'}cc)`) : 
+      'rgba(255, 255, 255, 0.15)'
     };
   }
-
+  
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-    transform: none;
   }
-
-  svg {
-    font-size: ${({ size }) => size === 'large' ? '24px' : '18px'};
+  
+  @media (max-width: 480px) {
+    width: 56px;
+    height: 56px;
+    font-size: 20px;
   }
 `;
 
-const PulseAnimation = styled.div`
+const SecondaryButton = styled(motion.button)`
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    transform: ${({ disabled }) => disabled ? 'none' : 'scale(1.05)'};
+    background: rgba(255, 255, 255, 0.15);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  @media (max-width: 480px) {
+    width: 40px;
+    height: 40px;
+    font-size: 14px;
+  }
+`;
+
+const TranscriptionBox = styled.div`
+  margin: 0 16px 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.15);
+  color: white;
+  font-size: 14px;
+  line-height: 1.4;
+  min-height: 60px;
+  max-height: 80px;
+  overflow-y: auto;
+  opacity: ${({ visible }) => visible ? 1 : 0};
+  transition: opacity 0.3s ease;
+  
+  @media (max-width: 480px) {
+    margin: 0 12px 12px;
+    padding: 10px 12px;
+    min-height: 50px;
+    max-height: 70px;
+    font-size: 13px;
+  }
+`;
+
+const SettingsButton = styled.button`
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(5px);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(0, 0, 0, 0.7);
+  }
+  
+  @media (max-width: 480px) {
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+  }
+`;
+
+const SettingsPanel = styled(motion.div)`
+  position: absolute;
+  top: 56px;
+  right: 16px;
+  width: 280px;
+  background: ${({ theme }) => theme.bubbleColor || '#2a2a3a'};
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  overflow: hidden;
+  
+  @media (max-width: 768px) {
+    width: 260px;
+    right: 12px;
+  }
+  
+  @media (max-width: 480px) {
+    width: calc(100% - 24px);
+    top: 48px;
+    right: 12px;
+  }
+`;
+
+const SettingsHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  
+  h3 {
+    font-size: 16px;
+    font-weight: 500;
+    color: white;
+    margin: 0;
+  }
+  
+  button {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    &:hover {
+      color: white;
+    }
+  }
+`;
+
+const SettingsContent = styled.div`
+  padding: 16px;
+`;
+
+const SettingGroup = styled.div`
+  margin-bottom: 16px;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const SettingLabel = styled.label`
+  display: block;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 8px;
+`;
+
+const Select = styled.select`
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  font-size: 14px;
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg fill='white' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/><path d='M0 0h24v24H0z' fill='none'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  cursor: pointer;
+  
+  &:focus {
+    outline: none;
+    border-color: ${({ theme }) => theme.primary || '#4a6cf7'};
+  }
+`;
+
+const SliderContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+`;
+
+const Slider = styled.input`
+  -webkit-appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.2);
+  outline: none;
+  margin: 8px 0;
+  
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: ${({ theme }) => theme.primary || '#4a6cf7'};
+    cursor: pointer;
+  }
+  
+  &::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: ${({ theme }) => theme.primary || '#4a6cf7'};
+    cursor: pointer;
+    border: none;
+  }
+`;
+
+const SliderLabels = styled.div`
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+`;
+
+const WaveAnimation = styled.div`
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 40px;
+  overflow: hidden;
+  opacity: ${({ visible }) => visible ? 0.2 : 0};
+  transition: opacity 0.5s ease;
+  
+  &:before, &:after {
+    content: '';
+    position: absolute;
+    left: 0;
+    width: 200%;
+    height: 100%;
+    background-repeat: repeat-x;
+    animation-duration: 10s;
+    animation-iteration-count: infinite;
+    animation-timing-function: linear;
+    background: linear-gradient(45deg, transparent, transparent 25%, rgba(255, 255, 255, 0.2) 25%, rgba(255, 255, 255, 0.2) 50%, transparent 50%, transparent 75%, rgba(255, 255, 255, 0.2) 75%);
+    background-size: 20px 20px;
+  }
+  
+  &:before {
+    bottom: 10px;
+    animation-name: wave;
+  }
+  
+  &:after {
+    bottom: 0;
+    animation-name: wave-reverse;
+    animation-duration: 7s;
+  }
+  
+  @keyframes wave {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  
+  @keyframes wave-reverse {
+    0% { transform: translateX(-50%); }
+    100% { transform: translateX(0); }
+  }
+`;
+
+const PulseRing = styled.div`
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
   border-radius: 50%;
-  animation: ${({ isRecording }) => isRecording ? 'pulse 1.5s infinite' : 'none'};
-  background: rgba(255, 0, 0, 0.2);
+  
+  &:before, &:after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 50%;
+    background: ${({ theme }) => theme.primary || '#4a6cf7'};
+    opacity: 0.4;
+    animation: pulse 2s infinite;
+  }
+  
+  &:after {
+    animation-delay: 0.5s;
+  }
   
   @keyframes pulse {
     0% {
       transform: scale(1);
-      opacity: 1;
+      opacity: 0.4;
     }
-    50% {
+    70% {
       transform: scale(1.3);
-      opacity: 0.3;
+      opacity: 0;
     }
     100% {
-      transform: scale(1);
-      opacity: 1;
+      transform: scale(1.3);
+      opacity: 0;
     }
   }
 `;
 
-const StatusText = styled.div`
-  text-align: center;
-  color: #f2f2f2;
-  font-size: 14px;
-  margin-top: 5px;
-  min-height: 20px;
-  font-weight: 500;
-  opacity: ${({ visible }) => visible ? '1' : '0'};
-  transition: opacity 0.3s ease;
-  
-  @media (max-width: 480px) {
-    font-size: 12px;
-    margin-top: 3px;
-    min-height: 18px;
-  }
-`;
+// ========= Component Implementation =========
 
-const CanvasContainer = styled.div`
-  width: 100%;
-  height: 60px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-top: 5px;
-  
-  @media (max-width: 480px) {
-    height: 40px;
-    margin-top: 3px;
-  }
-`;
-
-const VisualizerCanvas = styled.canvas.attrs({
-  className: 'audio-visualizer'
-})`
-  width: 100%;
-  height: 60px;
-  border-radius: 8px;
-  background-color: rgba(0, 0, 0, 0.2);
-`;
-
-const TranscriptionContainer = styled.div`
-  width: 100%;
-  padding: 12px;
-  background-color: rgba(0, 0, 0, 0.15);
-  border-radius: 8px;
-  margin-top: 10px;
-  font-size: 14px;
-  color: #f2f2f2;
-  max-height: 100px;
-  overflow-y: auto;
-  transition: all 0.3s ease;
-  opacity: ${({ visible }) => visible ? '1' : '0'};
-  max-height: ${({ visible }) => visible ? '100px' : '0'};
-  padding: ${({ visible }) => visible ? '12px' : '0'};
-  margin-top: ${({ visible }) => visible ? '10px' : '0'};
-  
-  @media (max-width: 480px) {
-    font-size: 13px;
-    padding: ${({ visible }) => visible ? '10px' : '0'};
-    max-height: ${({ visible }) => visible ? '80px' : '0'};
-  }
-`;
-
-const SettingsButton = styled.button`
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  background: none;
-  border: none;
-  color: rgba(255, 255, 255, 0.6);
-  cursor: pointer;
-  transition: color 0.2s ease;
-  
-  &:hover {
-    color: white;
-  }
-  
-  @media (max-width: 480px) {
-    top: 8px;
-    right: 8px;
-  }
-`;
-
-const SettingsPanel = styled.div.attrs({
-  className: 'settings-panel'
-})`
-  position: absolute;
-  top: 40px;
-  right: 12px;
-  background-color: ${({ theme }) => theme.bubbleColor || '#282838'};
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  padding: 15px;
-  width: 250px;
-  z-index: 100;
-  display: ${({ visible }) => visible ? 'block' : 'none'};
-`;
-
-const SettingGroup = styled.div`
-  margin-bottom: 15px;
-  
-  @media (max-width: 480px) {
-    margin-bottom: 12px;
-  }
-`;
-
-const SettingLabel = styled.label`
-  display: block;
-  color: #f2f2f2;
-  font-size: 14px;
-  margin-bottom: 5px;
-  
-  @media (max-width: 480px) {
-    font-size: 13px;
-    margin-bottom: 4px;
-  }
-`;
-
-const Select = styled.select`
-  width: 100%;
-  padding: 8px 10px;
-  border-radius: 6px;
-  background-color: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: white;
-  font-size: 14px;
-  appearance: none;
-  position: relative;
-  cursor: pointer;
-  
-  &:focus {
-    outline: none;
-    border-color: ${({ theme }) => theme.primary || '#5a5abf'};
-  }
-  
-  @media (max-width: 480px) {
-    padding: 6px 8px;
-    font-size: 13px;
-  }
-`;
-
-const RangeInput = styled.input`
-  width: 100%;
-  height: 8px;
-  -webkit-appearance: none;
-  appearance: none;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 5px;
-  outline: none;
-  
-  &::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background: ${({ theme }) => theme.primary || '#5a5abf'};
-    cursor: pointer;
-  }
-
-  &::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background: ${({ theme }) => theme.primary || '#5a5abf'};
-    cursor: pointer;
-    border: none;
-  }
-`;
-
-const RangeValue = styled.div`
-  display: flex;
-  justify-content: space-between;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 12px;
-  margin-top: 5px;
-`;
-
-/**
- * AudioConversation component for integrating voice chat capability
- */
-const AudioConversation = ({ 
-  theme = {}, 
-  onSendMessage, 
-  isBotSpeaking,
-  setIsBotSpeaking,
-  currentPlan = 'Standard',
-  latestAiMessage = ''
+const AudioConversation = ({
+  theme,
+  onSendMessage,
+  latestAiMessage,
+  setIsBotSpeaking
 }) => {
-  // State variables
-  const [isRecording, setIsRecording] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
+  // State for conversation flow
+  const [conversationState, setConversationState] = useState('idle'); // idle, listening, processing, speaking
   const [transcription, setTranscription] = useState('');
-  const [status, setStatus] = useState('');
-  const [error, setError] = useState(null);
-  const [audioSettings, setAudioSettings] = useState({
-    speechRate: 1,
-    pitch: 0,
-    voiceName: 'en-US-Chirp3-HD-Puck',
-    volume: 1
-  });
+  const [isActive, setIsActive] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [availableVoices, setAvailableVoices] = useState([]);
-  const [autoPlay, setAutoPlay] = useState(true);
-
-  // Refs
+  
+  // State for audio settings
+  const [voiceSettings, setVoiceSettings] = useState({
+    voice: 'en-US-Neural2-F',
+    pitch: 0,
+    speed: 1.0
+  });
+  
+  // Refs for audio processing
   const canvasRef = useRef(null);
-  const recognitionRef = useRef(null);
   const audioContextRef = useRef(null);
-  const audioAnalyserRef = useRef(null);
-  const mediaStreamRef = useRef(null);
-  const processingTimeoutRef = useRef(null);
-
-  // Create speech recognition on mount
+  const visualizerRef = useRef(null);
+  const micStreamRef = useRef(null);
+  const recognitionRef = useRef(null);
+  const speakingTimeoutRef = useRef(null);
+  
+  // Clean up resources when component unmounts
   useEffect(() => {
-    recognitionRef.current = createSpeechRecognition();
-    
-    if (recognitionRef.current) {
-      // Setup recognition events
-      recognitionRef.current.onstart = () => {
-        setIsRecording(true);
-        setStatus('Listening...');
-      };
-      
-      recognitionRef.current.onend = () => {
-        if (!isPaused) {
-          setIsRecording(false);
-        }
-        
-        if (transcription && !isPaused) {
-          setStatus('Processing...');
-          setIsProcessing(true);
-          
-          // Set a timeout to prevent UI from being stuck if processing takes too long
-          processingTimeoutRef.current = setTimeout(() => {
-            setIsProcessing(false);
-            setStatus('');
-          }, 10000);
-        } else if (!isPaused) {
-          setStatus('');
-        }
-      };
-      
-      recognitionRef.current.onresult = (event) => {
-        const transcript = Array.from(event.results)
-          .map(result => result[0].transcript)
-          .join('');
-          
-        setTranscription(transcript);
-      };
-      
-      recognitionRef.current.onerror = (event) => {
-        console.error('Speech recognition error:', event.error);
-        setError(`Error: ${event.error}`);
-        setIsRecording(false);
-        setIsPaused(false);
-        setStatus('');
-      };
-    }
-    
-    // Clean up on unmount
     return () => {
+      // Stop microphone stream if active
+      if (micStreamRef.current) {
+        micStreamRef.current.getTracks().forEach(track => track.stop());
+        micStreamRef.current = null;
+      }
+      
+      // Stop speech recognition
       if (recognitionRef.current) {
         recognitionRef.current.abort();
       }
       
+      // Clear any pending timeouts
+      if (speakingTimeoutRef.current) {
+        clearTimeout(speakingTimeoutRef.current);
+      }
+      
+      // Stop visualizer
+      if (visualizerRef.current) {
+        visualizerRef.current.stop();
+      }
+      
+      // Close audio context
       if (audioContextRef.current) {
         audioContextRef.current.close();
       }
-      
-      if (processingTimeoutRef.current) {
-        clearTimeout(processingTimeoutRef.current);
-      }
-      
-      if (mediaStreamRef.current) {
-        mediaStreamRef.current.getTracks().forEach(track => track.stop());
-      }
     };
   }, []);
-
-  // Load available voices on mount
+  
+  // Effect to handle microphone audio input
   useEffect(() => {
-    const loadVoices = async () => {
-      try {
-        const synth = window.speechSynthesis;
-        await new Promise(resolve => {
-          if (synth.getVoices().length > 0) {
-            resolve();
-          } else {
-            synth.onvoiceschanged = resolve;
-          }
-        });
-        
-        const voices = synth.getVoices();
-        setAvailableVoices(voices);
-      } catch (error) {
-        console.error('Error loading voices:', error);
+    if (isActive && (conversationState === 'listening' || conversationState === 'speaking')) {
+      initializeMicrophone();
+    } else {
+      // Stop microphone stream if not needed
+      if (micStreamRef.current) {
+        micStreamRef.current.getTracks().forEach(track => track.stop());
+        micStreamRef.current = null;
       }
-    };
-    
-    loadVoices();
-  }, []);
-
-  // Effect to start audio visualization when recording
-  useEffect(() => {
-    if (isRecording && !audioContextRef.current && canvasRef.current) {
-      startAudioVisualization();
     }
-    
-    return () => {
-      if (audioAnalyserRef.current) {
-        audioAnalyserRef.current.disconnect();
-      }
-    };
-  }, [isRecording]);
-
-  // Effect to speak AI response when it changes
+  }, [isActive, conversationState]);
+  
+  // Effect to start listening when active
   useEffect(() => {
-    if (latestAiMessage && autoPlay && !isBotSpeaking) {
+    if (isActive) {
+      if (conversationState === 'idle') {
+        startListening();
+      }
+    } else {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setConversationState('idle');
+    }
+  }, [isActive]);
+  
+  // Effect to handle new AI messages
+  useEffect(() => {
+    console.log('Latest AI message received:', latestAiMessage);
+    console.log('Current conversation state:', conversationState);
+    
+    if (isActive && latestAiMessage && conversationState === 'processing') {
+      console.log('Processing AI response for speech...');
       speakAiResponse(latestAiMessage);
     }
-  }, [latestAiMessage, autoPlay]);
-
-  /**
-   * Start the audio visualization
-   */
-  const startAudioVisualization = async () => {
+  }, [latestAiMessage, conversationState, isActive]);
+  
+  // Initialize audio context and microphone stream
+  const initializeMicrophone = async () => {
     try {
-      if (!canvasRef.current) return;
+      if (!audioContextRef.current) {
+        audioContextRef.current = createAudioContext();
+      }
       
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaStreamRef.current = stream;
+      // Skip if stream already exists
+      if (micStreamRef.current) return;
       
-      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: { 
+          echoCancellation: true,
+          noiseSuppression: true
+        } 
+      });
+      
+      micStreamRef.current = stream;
+      
+      // Setup audio visualization
       const source = audioContextRef.current.createMediaStreamSource(stream);
       
-      audioAnalyserRef.current = visualizeAudio(canvasRef.current, source, audioContextRef.current);
+      if (!visualizerRef.current && canvasRef.current) {
+        // Validate theme color and provide a fallback
+        const safeBarColor = (theme?.primary && typeof theme.primary === 'string') 
+          ? theme.primary 
+          : '#4a6cf7';  // Fallback color
+        
+        try {
+          visualizerRef.current = createVisualizer(canvasRef.current, audioContextRef.current, {
+            barColor: safeBarColor,
+            fftSize: 512,
+            smoothing: 0.85
+          });
+          
+          visualizerRef.current.connect(source).start();
+        } catch (error) {
+          console.error('Error creating audio visualizer:', error);
+          // Continue without visualizer if it fails to initialize
+        }
+      }
     } catch (error) {
-      console.error('Error starting audio visualization:', error);
-      setError('Could not access microphone');
+      console.error('Error initializing microphone:', error);
+      setIsActive(false);
     }
   };
-
-  /**
-   * Start recording audio
-   */
-  const startRecording = () => {
-    if (!recognitionRef.current) {
-      setError('Speech recognition not supported in your browser');
-      return;
+  
+  // Speech recognition functions
+  const startListening = () => {
+    console.log('Starting listening...');
+    
+    if (recognitionRef.current) {
+      recognitionRef.current.abort();
     }
     
-    try {
+    // Only clear transcription when starting a completely new listening session
+    if (conversationState !== 'listening') {
       setTranscription('');
-      setError(null);
-      recognitionRef.current.start();
-    } catch (error) {
-      console.error('Error starting speech recognition:', error);
-      setError('Error starting speech recognition');
     }
-  };
-
-  /**
-   * Stop recording audio
-   */
-  const stopRecording = async () => {
-    if (!recognitionRef.current) return;
     
-    try {
-      recognitionRef.current.stop();
-      setIsPaused(false);
-      
-      if (mediaStreamRef.current) {
-        mediaStreamRef.current.getTracks().forEach(track => track.stop());
-      }
-      
-      if (transcription) {
-        // Send transcription to chat
-        await sendTranscriptionToChat();
-      }
-    } catch (error) {
-      console.error('Error stopping speech recognition:', error);
-    }
-  };
-
-  /**
-   * Toggle pause/resume recording
-   */
-  const togglePause = () => {
-    if (isRecording) {
-      if (!isPaused) {
-        recognitionRef.current.stop();
-        setIsPaused(true);
-        setStatus('Paused');
-      } else {
-        setIsPaused(false);
-        setStatus('Resuming...');
+    setConversationState('listening');
+    
+    recognitionRef.current = createEnhancedSpeechRecognition({
+      silenceThreshold: 2500, // Increase silence threshold to 2.5 seconds to handle brief pauses
+      briefPauseThreshold: 1000, // Brief pause threshold of 1 second (new parameter)
+      onResult: ({ transcript, isFinal }) => {
+        setTranscription(transcript);
+        if (isFinal) {
+          console.log('Final transcript received:', transcript);
+        }
+      },
+      onBriefPause: () => {
+        // Do nothing on brief pause, just keep the current transcription
+        console.log('Brief pause detected, continuing to listen...');
+      },
+      onSilence: (transcript) => {
+        console.log('Long silence detected, transcript:', transcript);
+        if (transcript && transcript.trim()) {
+          handleTranscriptionComplete(transcript);
+        } else {
+          // If no transcript was captured but silence was detected,
+          // restart listening after a short delay
+          setTimeout(() => {
+            if (isActive && conversationState === 'listening') {
+              console.log('No speech detected, restarting listening...');
+              startListening();
+            }
+          }, 500);
+        }
+      },
+      onError: (error) => {
+        console.error('Speech recognition error:', error);
+        setConversationState('idle');
+        
+        // Try to restart listening after error
         setTimeout(() => {
-          recognitionRef.current.start();
-        }, 200);
+          if (isActive) {
+            console.log('Restarting listening after error...');
+            startListening();
+          }
+        }, 1000);
+      },
+      onStart: () => {
+        console.log('Speech recognition started');
+      },
+      onEnd: () => {
+        console.log('Speech recognition ended');
       }
-    }
-  };
-
-  /**
-   * Send transcription to chat for processing
-   */
-  const sendTranscriptionToChat = async () => {
-    if (!transcription.trim()) return;
+    });
     
-    try {
-      setIsProcessing(true);
-      
-      // Call the onSendMessage callback with the transcription
-      if (onSendMessage) {
-        await onSendMessage(transcription);
-      }
-      
-      setTranscription('');
-    } catch (error) {
-      console.error('Error sending transcription to chat:', error);
-      setError('Error processing your message');
-    } finally {
-      if (processingTimeoutRef.current) {
-        clearTimeout(processingTimeoutRef.current);
-      }
-      setIsProcessing(false);
-      setStatus('');
+    recognitionRef.current.start();
+  };
+  
+  // Handle completed transcription
+  const handleTranscriptionComplete = (text) => {
+    if (!text || !text.trim()) return;
+    
+    console.log('Transcription complete, sending message:', text);
+    
+    // Stop listening
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+    
+    // Set state to processing
+    setConversationState('processing');
+    
+    // Send message to parent component
+    if (onSendMessage) {
+      onSendMessage(text);
     }
   };
-
-  /**
-   * Speak the AI response
-   */
+  
+  // Speak AI response
   const speakAiResponse = async (text) => {
-    if (!text || isBotSpeaking) return;
-    
     try {
+      console.log('Speaking AI response:', text);
+      setConversationState('speaking');
       setIsBotSpeaking(true);
-      setStatus('Converting to speech...');
       
-      const audioConfig = {
-        languageCode: 'en-US',
-        name: audioSettings.voiceName,
-        pitch: audioSettings.pitch,
-        speakingRate: audioSettings.speechRate
-      };
+      const audioData = await convertTextToSpeech(text, {
+        name: voiceSettings.voice,
+        pitch: voiceSettings.pitch,
+        speakingRate: voiceSettings.speed
+      });
       
-      const audioUri = await convertTextToSpeech(text, audioConfig);
-      if (!audioUri) {
-        throw new Error('Failed to generate speech');
+      if (audioData) {
+        await playAudio(
+          audioData,
+          () => {
+            console.log('Started speaking');
+          },
+          () => {
+            console.log('Finished speaking');
+            setIsBotSpeaking(false);
+            
+            // Delay before starting to listen again
+            speakingTimeoutRef.current = setTimeout(() => {
+              if (isActive) {
+                console.log('AI response complete, starting to listen again...');
+                startListening();
+              }
+            }, 1000);
+          }
+        );
+      } else {
+        console.error('No audio data received from text-to-speech');
+        setConversationState('idle');
+        setIsBotSpeaking(false);
+        
+        // Try to restart listening if no audio data
+        setTimeout(() => {
+          if (isActive) {
+            console.log('No audio data, restarting listening...');
+            startListening();
+          }
+        }, 1000);
       }
-      
-      setStatus('Speaking...');
-      await playAudio(audioUri);
     } catch (error) {
       console.error('Error speaking AI response:', error);
-      setError('Error playing audio response');
-    } finally {
+      setConversationState('idle');
       setIsBotSpeaking(false);
-      setStatus('');
+      
+      // Try to restart listening after error
+      setTimeout(() => {
+        if (isActive) {
+          console.log('Error in speaking, restarting listening...');
+          startListening();
+        }
+      }, 1000);
     }
   };
-
-  /**
-   * Toggle auto play for AI responses
-   */
-  const toggleAutoPlay = () => {
-    setAutoPlay(!autoPlay);
+  
+  // Toggle active state
+  const toggleActive = () => {
+    if (conversationState === 'speaking') {
+      // Stop speaking if active
+      setIsActive(false);
+      setIsBotSpeaking(false);
+      setConversationState('idle');
+    } else {
+      setIsActive(!isActive);
+    }
   };
-
-  /**
-   * Update audio settings
-   */
-  const handleSettingChange = (setting, value) => {
-    setAudioSettings({
-      ...audioSettings,
-      [setting]: value
-    });
+  
+  // Update voice settings
+  const handleSettingsChange = (key, value) => {
+    setVoiceSettings(prev => ({
+      ...prev,
+      [key]: value
+    }));
   };
-
+  
+  // Render state indicator text
+  const renderStateText = () => {
+    switch (conversationState) {
+      case 'listening':
+        return 'Listening...';
+      case 'processing':
+        return 'Processing...';
+      case 'speaking':
+        return 'Speaking...';
+      default:
+        return 'Ready';
+    }
+  };
+  
+  // Render state indicator icon
+  const renderStateIcon = () => {
+    switch (conversationState) {
+      case 'listening':
+        return <FontAwesomeIcon icon={faMicrophone} />;
+      case 'processing':
+        return <FontAwesomeIcon icon={faSpinner} spin />;
+      case 'speaking':
+        return <FontAwesomeIcon icon={faVolumeUp} />;
+      default:
+        return <FontAwesomeIcon icon={faHeadphones} />;
+    }
+  };
+  
+  // Voice model options
+  const voiceOptions = getVoiceModels();
+  
   return (
-    <AudioContainer theme={theme}>
-      {/* Settings Button */}
-      <SettingsButton onClick={() => setShowSettings(!showSettings)}>
-        <FontAwesomeIcon icon={faCog} />
-      </SettingsButton>
-      
-      {/* Settings Panel */}
-      <SettingsPanel theme={theme} visible={showSettings}>
-        <SettingGroup>
-          <SettingLabel>Voice</SettingLabel>
-          <Select 
-            value={audioSettings.voiceName}
-            onChange={(e) => handleSettingChange('voiceName', e.target.value)}
-            theme={theme}
-          >
-            <option value="en-US-Chirp3-HD-Puck">Chirp (Female)</option>
-            <option value="en-US-Journey-HD-Puck">Journey (Male)</option>
-            <option value="en-US-Neural2-J">Calm Voice (Male)</option>
-            <option value="en-US-Neural2-F">Warm Voice (Female)</option>
-            <option value="en-GB-Neural2-B">British (Male)</option>
-            <option value="en-GB-Neural2-C">British (Female)</option>
-          </Select>
-        </SettingGroup>
+    <Container
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 20 }}
+      transition={{ duration: 0.3 }}
+    >
+      <VisualizerContainer>
+        <VisualizerCanvas ref={canvasRef} />
+        <WaveAnimation visible={conversationState === 'speaking'} />
         
-        <SettingGroup>
-          <SettingLabel>Speech Rate</SettingLabel>
-          <RangeInput 
-            type="range" 
-            min="0.5" 
-            max="1.5" 
-            step="0.1" 
-            value={audioSettings.speechRate}
-            onChange={(e) => handleSettingChange('speechRate', parseFloat(e.target.value))}
-            theme={theme}
-          />
-          <RangeValue>
-            <span>Slow</span>
-            <span>{audioSettings.speechRate.toFixed(1)}x</span>
-            <span>Fast</span>
-          </RangeValue>
-        </SettingGroup>
+        <StateIndicator>
+          {renderStateIcon()}
+          {renderStateText()}
+        </StateIndicator>
         
-        <SettingGroup>
-          <SettingLabel>Pitch</SettingLabel>
-          <RangeInput 
-            type="range" 
-            min="-5" 
-            max="5" 
-            step="1" 
-            value={audioSettings.pitch}
-            onChange={(e) => handleSettingChange('pitch', parseInt(e.target.value))}
-            theme={theme}
-          />
-          <RangeValue>
-            <span>Low</span>
-            <span>{audioSettings.pitch > 0 ? `+${audioSettings.pitch}` : audioSettings.pitch}</span>
-            <span>High</span>
-          </RangeValue>
-        </SettingGroup>
-      </SettingsPanel>
-
-      {/* Audio Visualization */}
-      <CanvasContainer>
-        <VisualizerCanvas 
-          ref={canvasRef} 
-          width="600" 
-          height="60"
-        />
-      </CanvasContainer>
+        <SettingsButton onClick={() => setShowSettings(prev => !prev)}>
+          <FontAwesomeIcon icon={faSliders} />
+        </SettingsButton>
+      </VisualizerContainer>
       
-      {/* Status and Error Messages */}
-      <StatusText visible={status || error}>
-        {error ? (
-          <span style={{ color: '#ff6b6b' }}>
-            <FontAwesomeIcon icon={faExclamationTriangle} style={{ marginRight: '5px' }} />
-            {error}
-          </span>
-        ) : status}
-      </StatusText>
-      
-      {/* Transcription Display */}
-      <TranscriptionContainer visible={!!transcription.trim()}>
-        {transcription}
-      </TranscriptionContainer>
-      
-      {/* Control Buttons */}
-      <ButtonsContainer>
-        {/* Auto Play Toggle */}
-        <AudioButton 
-          onClick={toggleAutoPlay}
-          theme={theme}
+      <ControlsContainer>
+        <MainButton
+          active={isActive}
+          onClick={toggleActive}
+          whileTap={{ scale: 0.95 }}
+          disabled={conversationState === 'processing'}
         >
-          <FontAwesomeIcon icon={autoPlay ? faVolumeUp : faVolumeOff} />
-        </AudioButton>
-
-        {/* Play AI Response */}
-        <AudioButton 
-          onClick={() => latestAiMessage && speakAiResponse(latestAiMessage)}
-          disabled={!latestAiMessage || isBotSpeaking}
-          theme={theme}
-        >
-          <FontAwesomeIcon icon={faPlay} />
-        </AudioButton>
-        
-        {/* Record Button */}
-        <AudioButton 
-          size="large"
-          primary
-          onClick={isRecording ? stopRecording : startRecording}
-          disabled={isBotSpeaking || isProcessing}
-          theme={theme}
-        >
-          {isProcessing ? (
-            <FontAwesomeIcon icon={faSpinner} spin />
+          {conversationState === 'speaking' ? (
+            <FontAwesomeIcon icon={faStop} />
+          ) : isActive ? (
+            <FontAwesomeIcon icon={faStop} />
           ) : (
-            <FontAwesomeIcon icon={isRecording ? faStop : faMicrophone} />
+            <FontAwesomeIcon icon={faMicrophone} />
           )}
-          {isRecording && <PulseAnimation isRecording={true} />}
-        </AudioButton>
-        
-        {/* Pause/Resume Button */}
-        <AudioButton 
-          onClick={togglePause}
-          disabled={!isRecording || isProcessing}
-          theme={theme}
-        >
-          <FontAwesomeIcon icon={isPaused ? faPlay : faPause} />
-        </AudioButton>
-        
-        {/* Success Indicator when processed */}
-        <AudioButton 
-          theme={theme}
-          disabled={true}
-          style={{ opacity: isProcessing ? 0 : 1 }}
-        >
-          <FontAwesomeIcon icon={faCheckCircle} />
-        </AudioButton>
-      </ButtonsContainer>
-    </AudioContainer>
+          
+          {isActive && conversationState === 'listening' && <PulseRing theme={theme} />}
+        </MainButton>
+      </ControlsContainer>
+      
+      <TranscriptionBox visible={!!transcription}>
+        {transcription}
+      </TranscriptionBox>
+      
+      <AnimatePresence>
+        {showSettings && (
+          <SettingsPanel
+            initial={{ opacity: 0, scale: 0.9, y: -10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: -10 }}
+            transition={{ duration: 0.2 }}
+          >
+            <SettingsHeader>
+              <h3>Voice Settings</h3>
+              <button onClick={() => setShowSettings(false)}>
+                <FontAwesomeIcon icon={faXmark} />
+              </button>
+            </SettingsHeader>
+            
+            <SettingsContent>
+              <SettingGroup>
+                <SettingLabel htmlFor="voice-select">Voice</SettingLabel>
+                <Select
+                  id="voice-select"
+                  value={voiceSettings.voice}
+                  onChange={(e) => handleSettingsChange('voice', e.target.value)}
+                  theme={theme}
+                >
+                  {voiceOptions.map(voice => (
+                    <option key={voice.id} value={voice.id}>
+                      {voice.name}
+                    </option>
+                  ))}
+                </Select>
+              </SettingGroup>
+              
+              <SettingGroup>
+                <SettingLabel>Speech Speed</SettingLabel>
+                <SliderContainer>
+                  <Slider
+                    type="range"
+                    min="0.5"
+                    max="1.5"
+                    step="0.1"
+                    value={voiceSettings.speed}
+                    onChange={(e) => handleSettingsChange('speed', parseFloat(e.target.value))}
+                    theme={theme}
+                  />
+                  <SliderLabels>
+                    <span>Slow</span>
+                    <span>Normal</span>
+                    <span>Fast</span>
+                  </SliderLabels>
+                </SliderContainer>
+              </SettingGroup>
+              
+              <SettingGroup>
+                <SettingLabel>Pitch</SettingLabel>
+                <SliderContainer>
+                  <Slider
+                    type="range"
+                    min="-10"
+                    max="10"
+                    step="1"
+                    value={voiceSettings.pitch}
+                    onChange={(e) => handleSettingsChange('pitch', parseInt(e.target.value))}
+                    theme={theme}
+                  />
+                  <SliderLabels>
+                    <span>Low</span>
+                    <span>Normal</span>
+                    <span>High</span>
+                  </SliderLabels>
+                </SliderContainer>
+              </SettingGroup>
+            </SettingsContent>
+          </SettingsPanel>
+        )}
+      </AnimatePresence>
+    </Container>
   );
 };
 

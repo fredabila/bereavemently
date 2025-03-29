@@ -23,6 +23,8 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import genToken from './utils/genToken';
 import AudioConversation from './components/AudioConversation';
+import { AnimatePresence } from 'framer-motion';
+import { v4 as uuidv4 } from 'uuid';
 
 // --- Subscription Data & Logic (Fetch from Backend) ---
 const subscriptionPlans = {
@@ -984,7 +986,7 @@ const Chat = () => {
     scrollToBottom();
   }, [messages]);
 
-  const startSpeechRecognition = () => {
+  const toggleAudioConversation = () => {
     if (currentPlan === "Free") {
       navigate("/subscribe");
     } else {
@@ -1147,20 +1149,21 @@ const Chat = () => {
           isUser: false
         }
       ]);
+      // Store the quote text for audio playback
+      setLatestAiMessage(quoteMatch[1] + ". By " + quoteMatch[2]);
     } else {
       setMessages((prevMessages) => [
         ...prevMessages,
         { type: "text", content: text, isUser: false }
       ]);
+      // Store the regular text for audio playback
+      setLatestAiMessage(text);
     }
     
     setChatHistory((prevHistory) => [
       ...prevHistory,
       `\nBereavemently: ${text}`
     ]);
-
-    // Store the latest AI response for audio playback
-    setLatestAiMessage(text);
   };
 
   const detectIntenseEmotion = (text) => {
@@ -1869,15 +1872,6 @@ const Chat = () => {
     }, 1000);
   };
 
-  // Add this function to handle sending messages from audio input
-  const handleAudioMessageSend = async (transcription) => {
-    // Use the existing input state to trigger the regular send flow
-    setInput(transcription);
-
-    // Call the existing onSend function
-    await onSend();
-  };
-
   // Helper function to extract emotions from text
   const extractEmotions = (text) => {
     if (!text) return [];
@@ -1901,7 +1895,7 @@ const Chat = () => {
     return foundEmotions;
   };
 
-  // Restore the renderJournalEntries function
+  // Render journal entries for the journal modal
   const renderJournalEntries = () => (
     <div className="space-y-6">
       {journalEntries.map((entry) => (
@@ -1963,6 +1957,115 @@ const Chat = () => {
       ))}
     </div>
   );
+
+  // Handle audio message submission - directly send messages without updating input field
+  const handleAudioMessageSubmit = async (text) => {
+    if (!text.trim()) return;
+    
+    // Create a new user message
+    const newMessage = { type: "text", content: text, isUser: true };
+    
+    // Add the user message to the messages
+    setMessages((prevMessages) => [...prevMessages, newMessage]);
+    
+    // Add to chat history
+    setChatHistory((prevHistory) => [...prevHistory, `\nMe: ${text}`]);
+    
+    // Reset templates and start typing indicator
+    setShowTemplates(false);
+    setIsTyping(true);
+    setSuggestedResponses([]);
+    
+    // Increment message count
+    setDailyMessageCount(dailyMessageCount + 1);
+    
+    // Update user document if logged in
+    if (user) {
+      const userDocRef = doc(db, "bereavementlyUsers", user.uid);
+      await updateDoc(userDocRef, {
+        requestNo: dailyMessageCount + 1,
+        lastRequestDate: serverTimestamp(),
+      });
+    }
+    
+    try {
+      // Check if the message contains specific grief-related keywords
+      const griefKeywords = ["loss", "died", "death", "grief", "missing", "passed away", "funeral"];
+      const containsGriefKeywords = griefKeywords.some(keyword => 
+        text.toLowerCase().includes(keyword)
+      );
+      
+      // Enhanced system prompt
+      const systemPrompt = containsGriefKeywords ? 
+        `You are Bereavemently, a specialized AI grief counselor with expertise in helping people navigate loss and mourning. 
+        Your primary focus is to provide emotional support, validation, and gentle guidance for someone experiencing grief.
+        Be warm, empathetic, and human in your responses. Listen actively and respond thoughtfully.
+        Occasionally (about 15% of responses), offer gentle wisdom about grief from experts or literature when relevant.
+        Your goal is to help the person feel truly heard, validated, and less alone in their grief journey.` 
+        : 
+        "You are Bereavemently. An AI meant to help people overcome the struggles of loss and mourning and to navigate these difficulties";
+      
+      // Get context from chat history
+      const context = chatHistory.slice(-12);
+      
+      // Make API request
+      const response = await fetch("https://v1.api.buzzchat.site/ember/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache",
+          "B-Key": "625a32fff8a54832bbdb43e749b7c9c1",
+        },
+        body: JSON.stringify({
+          content: `\nChatHistory:${context.join("")} \nMe: ${text} \nBase: "${systemPrompt}" \nBereavemently:`,
+        }),
+      });
+      
+      const data = await response.json();
+      const reply = stripHtmlTags(data.message);
+      
+      // Store for audio playback
+      setLatestAiMessage(reply);
+      
+      // Process the response
+      const shouldIncludeImage = detectIntenseEmotion(text) && Math.random() < 0.5;
+      
+      if (shouldIncludeImage) {
+        await sendComfortingImage(reply);
+      } else {
+        processTextResponse(reply);
+      }
+      
+      // Track grief themes for journal
+      if (reply.includes("feel") || reply.includes("emotion") || 
+          reply.includes("grief") || reply.includes("loss") || 
+          reply.includes("pain") || reply.includes("remember")) {
+        await generateJournalEntry({
+          userMessage: text,
+          aiResponse: reply,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
+      // Generate suggested responses
+      setTimeout(() => {
+        generateSuggestedResponses(reply);
+      }, 1000);
+      
+    } catch (error) {
+      console.error("Error with AI API:", error);
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        {
+          type: "text",
+          content: "Sorry, something went wrong. Please try again later.",
+          isUser: false,
+        },
+      ]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
 
   return (
     <ThemeProvider theme={subscriptionPlans[currentPlan].theme}>
@@ -2051,14 +2154,14 @@ const Chat = () => {
 
         {/* Audio Conversation Component */}
         {showAudioConversation && (
-          <AudioConversation
-            theme={subscriptionPlans[currentPlan].theme}
-            onSendMessage={handleAudioMessageSend}
-            isBotSpeaking={isBotSpeaking}
-            setIsBotSpeaking={setIsBotSpeaking}
-            currentPlan={currentPlan}
-            latestAiMessage={latestAiMessage}
-          />
+          <AnimatePresence>
+            <AudioConversation
+              theme={subscriptionPlans[currentPlan].theme}
+              onSendMessage={handleAudioMessageSubmit}
+              latestAiMessage={latestAiMessage}
+              setIsBotSpeaking={setIsBotSpeaking}
+            />
+          </AnimatePresence>
         )}
 
         <InputContainer theme={subscriptionPlans[currentPlan].theme}>
@@ -2066,20 +2169,14 @@ const Chat = () => {
           
           <InputWrapper theme={subscriptionPlans[currentPlan].theme}>
             <InputField
-              placeholder={
-                limitExceeded
-                  ? "You've reached your daily message limit"
-                  : "Type your message..."
-              }
+              placeholder={isBotSpeaking ? "Listening to AI response..." : "Type your message..."}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={limitExceeded || isTyping}
-              theme={subscriptionPlans[currentPlan].theme}
+              onKeyPress={handleKeyDown}
+              disabled={isBotSpeaking || isTyping}
             />
 
             <ButtonGroup>
-
           <ToolbarButton 
                 type="button"
             onClick={() => setShowJournal(true)}
@@ -2090,8 +2187,8 @@ const Chat = () => {
           
               <MicButton
                 type="button"
-            onClick={startSpeechRecognition}
-                disabled={limitExceeded || isTyping}
+                onClick={toggleAudioConversation}
+                disabled={isTyping}
                 title="Voice message"
                 theme={subscriptionPlans[currentPlan].theme}
                 active={showAudioConversation}
@@ -2102,7 +2199,7 @@ const Chat = () => {
               <SendButton
                 type="button"
                 onClick={onSend}
-                disabled={!input.trim() || limitExceeded || isTyping}
+                disabled={!input.trim() || isTyping}
                 theme={subscriptionPlans[currentPlan].theme}
               >
               <FontAwesomeIcon icon={faPaperPlane} />
