@@ -19,12 +19,44 @@ export const cleanText = (text) => {
     .trim();
 };
 
+// Add a function to unlock audio on mobile devices (especially iOS)
+const unlockAudioContext = (audioContext) => {
+  if (audioContext.state === 'suspended') {
+    const unlockAudio = () => {
+      audioContext.resume();
+      
+      // Create and play a silent buffer to unlock audio
+      const buffer = audioContext.createBuffer(1, 1, 22050);
+      const source = audioContext.createBufferSource();
+      source.buffer = buffer;
+      source.connect(audioContext.destination);
+      source.start(0);
+      
+      // Remove the event listeners once audio is unlocked
+      document.removeEventListener('touchstart', unlockAudio);
+      document.removeEventListener('touchend', unlockAudio);
+      document.removeEventListener('click', unlockAudio);
+    };
+    
+    // Add event listeners to unlock audio
+    document.addEventListener('touchstart', unlockAudio, false);
+    document.addEventListener('touchend', unlockAudio, false);
+    document.addEventListener('click', unlockAudio, false);
+  }
+};
+
 /**
  * Creates an audio context for visualization and processing
  * @returns {AudioContext} - The created AudioContext
  */
 export const createAudioContext = () => {
-  return new (window.AudioContext || window.webkitAudioContext)();
+  // Create the audio context
+  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  
+  // Add unlock for mobile devices
+  unlockAudioContext(audioContext);
+  
+  return audioContext;
 };
 
 /**
@@ -96,42 +128,186 @@ export const convertTextToSpeech = async (text, config = {}) => {
 };
 
 /**
- * Plays audio from a data URL and returns a promise that resolves when playback is complete
+ * Plays audio from a data URL, returns the audio element for immediate control,
+ * and attaches event listeners for callbacks. Optimized for mobile browser compatibility.
  * @param {string} audioUri - Audio data URL
  * @param {function} onStart - Callback when audio starts playing
- * @param {function} onEnd - Callback when audio ends
- * @returns {Promise<HTMLAudioElement>} - Promise that resolves with the audio element when playback is complete
+ * @param {function} onEnd - Callback when audio ends or is stopped
+ * @returns {HTMLAudioElement} - The audio element for immediate control
  */
 export const playAudio = (audioUri, onStart = () => {}, onEnd = () => {}) => {
-  return new Promise((resolve, reject) => {
-    if (!audioUri) {
-      reject(new Error('No audio URI provided'));
-      return;
+  if (!audioUri) {
+    console.error('No audio URI provided');
+    setTimeout(onEnd, 0); // Call onEnd asynchronously
+    return null;
+  }
+  
+  // Create audio element
+  const audio = new Audio(audioUri);
+  let hasEnded = false;
+  let hasStarted = false;
+  
+  // Set audio attributes for better mobile compatibility
+  audio.crossOrigin = 'anonymous';
+  audio.preload = 'auto';
+  
+  // Mobile devices often require user interaction to play audio
+  // This helps ensure we're ready to play as soon as possible
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  if (isMobile) {
+    console.log('Mobile device detected, using optimized audio settings');
+    audio.playsinline = true; // Needed for iOS
+    audio.controls = false;
+    audio.muted = false;
+    audio.autoplay = false; // Don't use autoplay on mobile
+  }
+  
+  // Clean up function to prevent memory leaks
+  const cleanup = () => {
+    audio.oncanplaythrough = null;
+    audio.onplay = null;
+    audio.onplaying = null;
+    audio.onended = null;
+    audio.onpause = null;
+    audio.onerror = null;
+  };
+  
+  // Setup event handlers specifically for mobile
+  if (isMobile) {
+    // Add more detailed logging for mobile debugging
+    console.log('Setting up mobile-optimized audio event handlers');
+    
+    // iOS sometimes needs this additional event
+    audio.onloadedmetadata = () => {
+      console.log('Audio loadedmetadata event');
+    };
+    
+    // iOS sometimes requires a user gesture to play audio
+    document.addEventListener('touchstart', function() {
+      if (!hasStarted && audio.paused) {
+        console.log('Touch event detected, attempting to initialize audio playback');
+        const playAttempt = audio.play();
+        if (playAttempt) {
+          playAttempt.catch(e => console.log('Play from touch failed:', e));
+        }
+      }
+    }, { once: true });
+  }
+  
+  // Set up main event handlers
+  audio.oncanplaythrough = () => {
+    console.log('Audio can play through, attempting playback');
+    try {
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            console.log('Play promise resolved successfully');
+            hasStarted = true;
+            if (audio.onplay) audio.onplay();
+          })
+          .catch(error => {
+            console.error('Error playing audio:', error);
+            // On mobile, autoplay often fails due to browser policies
+            // Instead of giving up, we can retry with user interaction
+            if (isMobile) {
+              console.log('Mobile autoplay failed, waiting for user interaction');
+              // We leave the audio element available for later user-triggered playback
+            } else {
+              if (!hasEnded) {
+                hasEnded = true;
+                onEnd();
+                cleanup();
+              }
+            }
+          });
+      } else {
+        console.log('Play promise was undefined, assuming playback started');
+        hasStarted = true;
+        if (audio.onplay) audio.onplay();
+      }
+    } catch (error) {
+      console.error('Error in audio playback:', error);
+      if (!hasEnded) {
+        hasEnded = true;
+        onEnd();
+        cleanup();
+      }
     }
-    
-    const audio = new Audio(audioUri);
-    
-    audio.oncanplaythrough = () => {
-      audio.play()
-        .then(() => {
-          onStart();
-        })
-        .catch(error => {
-          console.error('Error playing audio:', error);
-          reject(error);
-        });
-    };
-    
-    audio.onended = () => {
+  };
+  
+  audio.onplay = () => {
+    console.log('Audio onplay event fired');
+    hasStarted = true;
+    onStart();
+  };
+  
+  // Additional event for mobile which sometimes needs both
+  audio.onplaying = () => {
+    console.log('Audio onplaying event fired');
+    if (!hasStarted) {
+      hasStarted = true;
+      onStart();
+    }
+  };
+  
+  audio.onended = () => {
+    console.log('Audio onended event fired');
+    if (!hasEnded) {
+      hasEnded = true;
       onEnd();
-      resolve(audio);
-    };
-    
-    audio.onerror = (error) => {
-      console.error('Audio playback error:', error);
-      reject(error);
-    };
-  });
+      cleanup();
+    }
+  };
+  
+  audio.onpause = () => {
+    console.log('Audio onpause event fired, ended =', audio.ended);
+    if (!audio.ended && !hasEnded) {
+      hasEnded = true;
+      onEnd();
+      cleanup();
+    }
+  };
+  
+  audio.onerror = (error) => {
+    console.error('Audio playback error:', error, audio.error);
+    if (!hasEnded) {
+      hasEnded = true;
+      onEnd();
+      cleanup();
+    }
+  };
+  
+  // Set a timeout to check if playback has started
+  setTimeout(() => {
+    if (!hasStarted && !hasEnded) {
+      console.log('Audio playback did not start in expected time, trying again');
+      try {
+        audio.play()
+          .then(() => {
+            hasStarted = true;
+            onStart();
+          })
+          .catch(error => {
+            console.error('Retry play failed:', error);
+            if (!hasEnded) {
+              hasEnded = true;
+              onEnd();
+              cleanup();
+            }
+          });
+      } catch (error) {
+        console.error('Error in retry playback:', error);
+        if (!hasEnded) {
+          hasEnded = true;
+          onEnd();
+          cleanup();
+        }
+      }
+    }
+  }, 3000);
+  
+  return audio;
 };
 
 /**

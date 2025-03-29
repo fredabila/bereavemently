@@ -471,6 +471,9 @@ const AudioConversation = ({
     speed: 1.0
   });
   
+  // Add a new state variable to track the last played message
+  const [lastPlayedMessageId, setLastPlayedMessageId] = useState('');
+  
   // Refs for audio processing
   const canvasRef = useRef(null);
   const audioContextRef = useRef(null);
@@ -478,6 +481,26 @@ const AudioConversation = ({
   const micStreamRef = useRef(null);
   const recognitionRef = useRef(null);
   const speakingTimeoutRef = useRef(null);
+  const audioElementRef = useRef(null);
+  
+  // Add mobile detection state
+  const [isMobile, setIsMobile] = useState(false);
+  const [needsUserInteraction, setNeedsUserInteraction] = useState(false);
+  
+  // Check mobile device on mount
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      setIsMobile(mobile);
+      if (mobile) {
+        console.log('Mobile device detected, optimizing audio interface');
+        // On mobile, we need user interaction to start audio
+        setNeedsUserInteraction(true);
+      }
+    };
+    
+    checkMobile();
+  }, []);
   
   // Clean up resources when component unmounts
   useEffect(() => {
@@ -496,6 +519,12 @@ const AudioConversation = ({
       // Clear any pending timeouts
       if (speakingTimeoutRef.current) {
         clearTimeout(speakingTimeoutRef.current);
+      }
+      
+      // Stop audio playback if active
+      if (audioElementRef.current) {
+        audioElementRef.current.pause();
+        audioElementRef.current = null;
       }
       
       // Stop visualizer
@@ -542,11 +571,16 @@ const AudioConversation = ({
     console.log('Latest AI message received:', latestAiMessage);
     console.log('Current conversation state:', conversationState);
     
-    if (isActive && latestAiMessage && conversationState === 'processing') {
-      console.log('Processing AI response for speech...');
+    // Create a unique ID for this message to track if it's been played
+    const messageId = latestAiMessage ? btoa(latestAiMessage.substring(0, 20)).replace(/=/g, '') : '';
+    
+    // Only process the message if it's new (not the same as last played) and we're in processing state
+    if (isActive && latestAiMessage && conversationState === 'processing' && messageId !== lastPlayedMessageId) {
+      console.log('Processing AI response for speech...', messageId);
+      setLastPlayedMessageId(messageId); // Mark this message as being played
       speakAiResponse(latestAiMessage);
     }
-  }, [latestAiMessage, conversationState, isActive]);
+  }, [latestAiMessage, conversationState, isActive, lastPlayedMessageId]);
   
   // Initialize audio context and microphone stream
   const initializeMicrophone = async () => {
@@ -599,6 +633,18 @@ const AudioConversation = ({
   const startListening = () => {
     console.log('Starting listening...');
     
+    // For mobile devices, check if we have user interaction yet
+    if (isMobile && needsUserInteraction) {
+      console.log('Waiting for user interaction before starting audio on mobile');
+      return;
+    }
+    
+    // Make sure we're not already in speaking state
+    if (conversationState === 'speaking') {
+      console.log('Still speaking, postponing listening...');
+      return;
+    }
+    
     if (recognitionRef.current) {
       recognitionRef.current.abort();
     }
@@ -611,8 +657,8 @@ const AudioConversation = ({
     setConversationState('listening');
     
     recognitionRef.current = createEnhancedSpeechRecognition({
-      silenceThreshold: 2500, // Increase silence threshold to 2.5 seconds to handle brief pauses
-      briefPauseThreshold: 1000, // Brief pause threshold of 1 second (new parameter)
+      silenceThreshold: isMobile ? 3000 : 2500, // Longer threshold for mobile
+      briefPauseThreshold: 1000,
       onResult: ({ transcript, isFinal }) => {
         setTranscription(transcript);
         if (isFinal) {
@@ -620,7 +666,6 @@ const AudioConversation = ({
         }
       },
       onBriefPause: () => {
-        // Do nothing on brief pause, just keep the current transcription
         console.log('Brief pause detected, continuing to listen...');
       },
       onSilence: (transcript) => {
@@ -628,8 +673,6 @@ const AudioConversation = ({
         if (transcript && transcript.trim()) {
           handleTranscriptionComplete(transcript);
         } else {
-          // If no transcript was captured but silence was detected,
-          // restart listening after a short delay
           setTimeout(() => {
             if (isActive && conversationState === 'listening') {
               console.log('No speech detected, restarting listening...');
@@ -640,15 +683,26 @@ const AudioConversation = ({
       },
       onError: (error) => {
         console.error('Speech recognition error:', error);
-        setConversationState('idle');
         
-        // Try to restart listening after error
-        setTimeout(() => {
-          if (isActive) {
-            console.log('Restarting listening after error...');
-            startListening();
-          }
-        }, 1000);
+        // Show more user-friendly error for mobile
+        if (isMobile) {
+          setTranscription("Could not access microphone. Please check your browser permissions.");
+          setTimeout(() => {
+            if (isActive) {
+              setConversationState('idle');
+              setTranscription('');
+            }
+          }, 3000);
+        } else {
+          setConversationState('idle');
+          
+          setTimeout(() => {
+            if (isActive) {
+              console.log('Restarting listening after error...');
+              startListening();
+            }
+          }, 1000);
+        }
       },
       onStart: () => {
         console.log('Speech recognition started');
@@ -658,7 +712,14 @@ const AudioConversation = ({
       }
     });
     
-    recognitionRef.current.start();
+    try {
+      recognitionRef.current.start();
+    } catch (error) {
+      console.error('Failed to start speech recognition:', error);
+      if (isMobile) {
+        setTranscription("Speech recognition not available. Try using Chrome on Android or Safari on iOS.");
+      }
+    }
   };
   
   // Handle completed transcription
@@ -695,22 +756,44 @@ const AudioConversation = ({
       });
       
       if (audioData) {
-        await playAudio(
+        // Stop any existing audio playback
+        if (audioElementRef.current) {
+          console.log('Stopping previous audio playback');
+          audioElementRef.current.pause();
+          audioElementRef.current = null;
+        }
+        
+        // Play the new audio and store the element reference
+        audioElementRef.current = playAudio(
           audioData,
           () => {
             console.log('Started speaking');
           },
           () => {
             console.log('Finished speaking');
+            audioElementRef.current = null;
             setIsBotSpeaking(false);
+            
+            // Clear any existing timeout
+            if (speakingTimeoutRef.current) {
+              clearTimeout(speakingTimeoutRef.current);
+            }
             
             // Delay before starting to listen again
             speakingTimeoutRef.current = setTimeout(() => {
               if (isActive) {
-                console.log('AI response complete, starting to listen again...');
-                startListening();
+                console.log('AI response complete, transitioning to listening state...');
+                // Set state to idle first, then start listening
+                setConversationState('idle');
+                
+                // Short delay to ensure state changes are processed
+                setTimeout(() => {
+                  if (isActive) {
+                    startListening();
+                  }
+                }, 300);
               }
-            }, 1000);
+            }, 800);
           }
         );
       } else {
@@ -743,13 +826,32 @@ const AudioConversation = ({
   
   // Toggle active state
   const toggleActive = () => {
-    if (conversationState === 'speaking') {
-      // Stop speaking if active
+    if (isActive) {
+      // Stop everything if active
       setIsActive(false);
       setIsBotSpeaking(false);
       setConversationState('idle');
+      setLastPlayedMessageId('');
+      
+      // Stop any ongoing audio playback
+      if (audioElementRef.current) {
+        audioElementRef.current.pause();
+        audioElementRef.current = null;
+      }
+      
+      // Stop any ongoing recognition
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+      }
+      
+      // Clear any pending timeouts
+      if (speakingTimeoutRef.current) {
+        clearTimeout(speakingTimeoutRef.current);
+      }
     } else {
-      setIsActive(!isActive);
+      // Start the conversation
+      setIsActive(true);
+      setLastPlayedMessageId('');
     }
   };
   
@@ -792,12 +894,34 @@ const AudioConversation = ({
   // Voice model options
   const voiceOptions = getVoiceModels();
   
+  // Add a mobile-specific audio unlock handler
+  const unlockAudioForMobile = () => {
+    if (needsUserInteraction) {
+      console.log('User interaction received, unlocking audio for mobile');
+      setNeedsUserInteraction(false);
+      
+      // Try to create audio context if needed
+      if (!audioContextRef.current) {
+        audioContextRef.current = createAudioContext();
+      }
+      
+      // Try playing a silent audio to unlock audio playback
+      try {
+        const silentAudio = new Audio("data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABIgD///////////////////////////////////////////8AAAA8TEFNRTMuMTAwAQAAAAAAAAAAABQgJAMGQQABmgAAASJObZDGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//sQZAAP8AAAaQAAAAgAAA0gAAABAAABpAAAACAAADSAAAAETEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=");
+        silentAudio.play().catch(e => console.log('Silent audio play failed:', e));
+      } catch (error) {
+        console.error('Error unlocking audio:', error);
+      }
+    }
+  };
+  
   return (
     <Container
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 20 }}
       transition={{ duration: 0.3 }}
+      onClick={unlockAudioForMobile} // Add this to help with iOS audio unlock
     >
       <VisualizerContainer>
         <VisualizerCanvas ref={canvasRef} />
@@ -812,6 +936,33 @@ const AudioConversation = ({
           <FontAwesomeIcon icon={faSliders} />
         </SettingsButton>
       </VisualizerContainer>
+      
+      {needsUserInteraction && isMobile && (
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'rgba(0,0,0,0.7)',
+          zIndex: 10,
+          borderRadius: '16px'
+        }}>
+          <div style={{
+            color: 'white',
+            textAlign: 'center',
+            padding: '20px'
+          }}>
+            <div style={{ fontSize: '32px', marginBottom: '10px' }}>
+              <FontAwesomeIcon icon={faMicrophone} />
+            </div>
+            <p>Tap anywhere to enable voice conversation</p>
+          </div>
+        </div>
+      )}
       
       <ControlsContainer>
         <MainButton
@@ -832,8 +983,8 @@ const AudioConversation = ({
         </MainButton>
       </ControlsContainer>
       
-      <TranscriptionBox visible={!!transcription}>
-        {transcription}
+      <TranscriptionBox visible={!!transcription || needsUserInteraction}>
+        {transcription || (needsUserInteraction && isMobile ? "Tap the microphone button to start voice conversation" : "")}
       </TranscriptionBox>
       
       <AnimatePresence>
