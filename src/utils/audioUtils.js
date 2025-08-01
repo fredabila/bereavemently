@@ -80,7 +80,7 @@ export const convertTextToSpeech = async (text, config = {}) => {
     ? cleanedText.substring(0, maxLength) + '...' 
     : cleanedText;
 
-  const url = `https://texttospeech.googleapis.com/v1beta1/text:synthesize?key=AIzaSyCoMJX5afK5Ic0F5UQVHyfrbx6apQAAVWA`;
+  const url = `https://texttospeech.googleapis.com/v1beta1/text:synthesize?key=${process.env.REACT_APP_AUDIO_KEY}`;
   
   const options = {
     method: 'POST',

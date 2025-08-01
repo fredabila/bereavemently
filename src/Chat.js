@@ -1453,7 +1453,7 @@ const Chat = () => {
       
       // Fallback to Gemini API with API key
       try {
-        const GEMINI_API_KEY = "AIzaSyCBOokiEfrnRhgbOGF5yGJRDZPQfo3oWTU";
+        const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY;
         
         if (!GEMINI_API_KEY) {
           console.error("GEMINI_API_KEY not found in environment variables");
