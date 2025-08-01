@@ -572,7 +572,17 @@ const AudioConversation = ({
     console.log('Current conversation state:', conversationState);
     
     // Create a unique ID for this message to track if it's been played
-    const messageId = latestAiMessage ? btoa(latestAiMessage.substring(0, 20)).replace(/=/g, '') : '';
+    const messageId = latestAiMessage ? 
+      (() => {
+        let hash = 0;
+        const str = latestAiMessage.substring(0, 20);
+        for (let i = 0; i < str.length; i++) {
+          const char = str.charCodeAt(i);
+          hash = ((hash << 5) - hash) + char;
+          hash = hash & hash; // Convert to 32-bit integer
+        }
+        return Math.abs(hash).toString(36);
+      })() : '';
     
     // Only process the message if it's new (not the same as last played) and we're in processing state
     if (isActive && latestAiMessage && conversationState === 'processing' && messageId !== lastPlayedMessageId) {
