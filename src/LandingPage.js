@@ -112,9 +112,63 @@ const LandingPage = ({ onStartChat }) => {
         .trim();
       return JSON.parse(cleanedResponse);
     } catch (error) {
-      console.error("Error generating AI response:", error);
-      toast.error("Failed to generate AI response. Please try again.");
-      return null;
+      console.error("Error generating AI response with token, trying fallback with API key:", error);
+      
+      // Fallback to Gemini API with API key
+      try {
+        const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY;
+        
+        if (!GEMINI_API_KEY) {
+          console.error("GEMINI_API_KEY not found in environment variables");
+          toast.error("Failed to generate AI response. Please try again.");
+          return null;
+        }
+
+        const fallbackUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+        
+        const fallbackData = {
+          contents: [
+            {
+              parts: [
+                {
+                  text: prompt
+                }
+              ]
+            }
+          ]
+        };
+
+        const fallbackHeaders = {
+          'Content-Type': 'application/json',
+          'X-goog-api-key': GEMINI_API_KEY
+        };
+
+        const fallbackResponse = await axios.post(fallbackUrl, fallbackData, { headers: fallbackHeaders });
+        
+        if (!fallbackResponse.data || !fallbackResponse.data.candidates || !fallbackResponse.data.candidates[0]) {
+          console.error("Fallback API response is invalid");
+          toast.error("Failed to generate AI response. Please try again.");
+          return null;
+        }
+        
+        const fallbackText = fallbackResponse.data.candidates[0].content.parts[0].text;
+        const cleanedFallbackResponse = fallbackText
+          .replace(/```json\s*|\s*```/g, "")
+          .trim();
+          
+        // Try to parse as JSON, if it fails, return the text as is
+        try {
+          return JSON.parse(cleanedFallbackResponse);
+        } catch (parseError) {
+          console.warn("Fallback response is not valid JSON, returning as text");
+          return { message: cleanedFallbackResponse };
+        }
+        
+      } catch (fallbackError) {
+        console.error("Fallback API also failed:", fallbackError);
+        toast.error("Failed to generate AI response. Please try again.");
+        return null;
+      }
     } finally {
       setLoading(false);
     }
