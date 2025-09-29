@@ -58,7 +58,7 @@ const MaintenanceScreen = () => {
 function App() {
   const user = auth.currentUser;
   const [showChat, setShowChat] = useState(false);
-  const [isMaintenanceMode, setIsMaintenanceMode] = useState(false); // Set to true for maintenance mode
+  const [isMaintenanceMode, setIsMaintenanceMode] = useState(true); // Set to true for maintenance mode
 
   // If maintenance mode is enabled, show maintenance screen
   if (isMaintenanceMode) {
